@@ -1,31 +1,52 @@
 using PharmTech.Data;
 using Microsoft.EntityFrameworkCore;
 using PharmTech.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Register Services FIRST
+// Database
 builder.Services.AddDbContext<PharmTechContext>(options =>
     options.UseMySql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         new MySqlServerVersion(new Version(8, 0, 45))
     ));
 
+// Controllers
 builder.Services.AddControllersWithViews();
 
+// Authentication (RBAC)
+builder.Services.AddAuthentication("Cookies")
+    .AddCookie("Cookies", options =>
+    {
+        options.LoginPath = "/account/login";
+        options.AccessDeniedPath = "/account/accessdenied";
+    });
 
-// Background service to check low stock daily
+// Authorization - (Role-based)
+builder.Services.AddAuthorization();
+
+// Login session (used in your login system)
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromHours(1);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+
+// Background service
 builder.Services.AddHostedService<LowStockBackgroundService>();
 
 var app = builder.Build();
 
-// Ensure database is created when the application starts (safe for empty dev DB)
+// Initializing the Database
 using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     try
     {
-        var db = scope.ServiceProvider.GetRequiredService<PharmTech.Data.PharmTechContext>();
+        var db = scope.ServiceProvider.GetRequiredService<PharmTechContext>();
         logger.LogInformation("Ensuring database is created...");
         db.Database.EnsureCreated();
         logger.LogInformation("Database ensured/created.");
@@ -36,7 +57,8 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Configure Middleware
+// Middleware Pipeline
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -48,13 +70,18 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+// Session must come before Authentication and Authorization
+app.UseSession();
+
+// Comes before Authorization
+app.UseAuthentication();
+
+// User Authorization
 app.UseAuthorization();
 
-// Map Routes
+// Routes
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
-
-// No SignalR hub mapping (background service will run without SignalR)
 
 app.Run();

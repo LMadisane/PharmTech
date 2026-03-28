@@ -10,6 +10,7 @@ namespace PharmTech.Data
         {
         }
 
+        public DbSet<AuditLog> AuditLogs { get; set; } = null!;
         public DbSet<DispenseRecord> DispenseRecords { get; set; } = null!;
         public DbSet<DrugReturn> DrugReturns { get; set; } = null!;
         public DbSet<Facility> Facilities { get; set; } = null!;

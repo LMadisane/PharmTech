@@ -1,15 +1,18 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-public class Supplier
+namespace PharmTech.Models
 {
-    [Key]
-    public int SupplierId { get; set; }
+    public class Supplier
+    {
+        [Key]
+        public int SupplierId { get; set; }
 
-    [Required]
-    public string Name { get; set; } = string.Empty;
+        [Required]
+        public string Name { get; set; } = string.Empty;
 
-    public string ContactInfo { get; set; } = string.Empty;
-    public string Address { get; set; } = string.Empty;
+        public string ContactInfo { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
 
-    public virtual ICollection<OrderRequest> Orders { get; set; } = new List<OrderRequest>();
+        public virtual ICollection<OrderRequest> Orders { get; set; } = new List<OrderRequest>();
+    }
 }
