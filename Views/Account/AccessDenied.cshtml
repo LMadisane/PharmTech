@@ -1,0 +1,49 @@
+﻿@{
+    ViewData["Title"] = "Access Denied";
+    Layout = null; // Standalone page, no sidebar needed
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Access Denied - PharmTech</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-900 to-blue-700 min-h-screen flex items-center justify-center">
+
+    <div class="bg-white rounded-2xl shadow-2xl p-10 max-w-md w-full text-center">
+
+        <!-- Icon -->
+        <div class="text-6xl mb-4">🚫</div>
+
+        <!-- Title -->
+        <h1 class="text-2xl font-bold text-red-600 mb-2">Access Denied</h1>
+
+        <!-- Message -->
+        <p class="text-gray-500 text-sm mb-6">
+            You do not have permission to view this page.
+            Please contact your administrator if you believe this is a mistake.
+        </p>
+
+        <!-- Back to Dashboard -->
+        <a href="/Dashboard"
+               class="inline-block bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition">
+            ← Back to Dashboard
+        </a>
+
+        <!-- Logout -->
+        <div class="mt-4">
+            <a href="/account/logout"
+                   class="text-sm text-red-400 hover:underline">
+                Logout
+            </a>
+        </div>
+
+    </div>
+
+</body>
+</html>

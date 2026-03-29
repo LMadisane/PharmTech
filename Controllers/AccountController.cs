@@ -18,9 +18,9 @@ namespace PharmTech.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login(string email, string password)
         {
+            // Check user exists and password is correct
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
 
-            // Check user exists and password is correct
             if (user == null || !VerifyPassword(password, user.PasswordHash))
             {
                 ModelState.AddModelError("", "Invalid credentials");
@@ -44,12 +44,12 @@ namespace PharmTech.Controllers
 
             // Build claims for cookie-based RBAC
             var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-                new Claim(ClaimTypes.Name, user.Name),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role)
-            };
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+        new Claim(ClaimTypes.Name, user.Name),
+        new Claim(ClaimTypes.Email, user.Email),
+        new Claim(ClaimTypes.Role, user.Role)
+    };
 
             var identity = new ClaimsIdentity(claims, "Cookies");
             var principal = new ClaimsPrincipal(identity);
@@ -64,7 +64,7 @@ namespace PharmTech.Controllers
             return RedirectToAction("Index", "Dashboard"); // landing page
         }
 
-        private bool VerifyPassword(string password, string hash)
+        private static bool VerifyPassword(string password, string hash)
         {
             // Replace with real hash check (BCrypt / SHA)
             return password == hash; // placeholder

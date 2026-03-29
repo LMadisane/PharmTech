@@ -3,57 +3,248 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - PharmTech</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/PharmTech.styles.css" asp-append-version="true" />
-</head>
-<body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">PharmTech</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
-    </header>
+    <title>@ViewData["Title"] - PharmTech | Smart Medicine. Seamless Care.</title>
 
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Site CSS -->
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+
+    <!-- App Shell -->
+    <div class="flex h-screen overflow-hidden" x-data="{ sidebarOpen: true }">
+
+        <!-- Sidebar -->
+        <aside :class="sidebarOpen ? 'w-64' : 'w-16'"
+               class="bg-blue-900 text-white flex flex-col transition-all duration-300 ease-in-out overflow-hidden">
+
+            <!-- Logo -->
+            <div class="flex items-center justify-between px-4 py-5 border-b border-blue-700">
+                <span x-show="sidebarOpen" class="text-xl font-bold tracking-wide">💊 PharmTech</span>
+                <button @@click="sidebarOpen = !sidebarOpen"
+                    class="text-white focus:outline-none ml-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+                         viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
+
+                <!-- Dashboard - All Roles -->
+                <a asp-controller="Dashboard" asp-action="Index"
+                       class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                    <span>📊</span>
+                    <span x-show="sidebarOpen">Dashboard</span>
+                </a>
+
+                <!-- Prescriptions - Admin, Doctor, Pharmacist -->
+                @if (User.IsInRole("Admin") || User.IsInRole("Doctor") || User.IsInRole("Pharmacist"))
+                {
+                    <a asp-controller="PrescriptionView" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <span>📋</span>
+                        <span x-show="sidebarOpen">Prescriptions</span>
+                    </a>
+                }
+
+                <!-- Dispensing - Pharmacist only -->
+                @if (User.IsInRole("Pharmacist"))
+                {
+                    <a asp-controller="DispensingView" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <span>💊</span>
+                        <span x-show="sidebarOpen">Dispensing</span>
+                    </a>
+                }
+
+                <!-- Drug Returns - Admin, Pharmacist -->
+                @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
+                {
+                    <a asp-controller="DrugReturnsView" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <span>↩️</span>
+                        <span x-show="sidebarOpen">Drug Returns</span>
+                    </a>
+                }
+
+                <!-- Inventory - Admin, Pharmacist -->
+                @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
+                {
+                    <a asp-controller="InventoryView" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <span>🏥</span>
+                        <span x-show="sidebarOpen">Inventory</span>
+                    </a>
+                }
+
+                <!-- Order Requests - Admin, Pharmacist -->
+                @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
+                {
+                    <a asp-controller="OrderRequestView" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <span>🛒</span>
+                        <span x-show="sidebarOpen">Order Requests</span>
+                    </a>
+                }
+
+                <!-- Suppliers - Admin, Pharmacist -->
+                @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
+                {
+                    <a asp-controller="SupplierView" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <span>🚚</span>
+                        <span x-show="sidebarOpen">Suppliers</span>
+                    </a>
+                }
+
+                <!-- Audit Logs - Admin only -->
+                @if (User.IsInRole("Admin"))
+                {
+                    <a asp-controller="AuditLogView" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <span>🔍</span>
+                        <span x-show="sidebarOpen">Audit Logs</span>
+                    </a>
+                }
+
+                <!-- User Management - Admin only -->
+                @if (User.IsInRole("Admin"))
+                {
+                    <a asp-controller="UserManagementView" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <span>👥</span>
+                        <span x-show="sidebarOpen">User Management</span>
+                    </a>
+                }
+
+            </nav>
+
+            <!-- Logout -->
+            <div class="px-2 py-4 border-t border-blue-700">
+                <a asp-controller="Account" asp-action="Logout"
+                       class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-600 transition">
+                    <span>🚪</span>
+                    <span x-show="sidebarOpen">Logout</span>
+                </a>
+            </div>
+
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+
+            <!-- Top Header -->
+            <header class="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
+
+                <!-- Page Title -->
+                <h1 class="text-xl font-semibold text-gray-700">@ViewData["Title"]</h1>
+
+                <!-- Right Side - User Info + Notifications -->
+                <div class="flex items-center gap-4" x-data="notificationStore()">
+
+                    <!-- Notification Bell -->
+                    <div class="relative">
+                        <button @@click="toggleNotifications()"
+                            class="relative text-gray-500 hover:text-blue-600 focus:outline-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+                                 viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                            </svg>
+                            <!-- Badge -->
+                            <span x-show="unreadCount > 0"
+                                  x-text="unreadCount"
+                                  class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">
+                            </span>
+                        </button>
+
+                        <!-- Notification Dropdown -->
+                        <div x-show="showNotifications"
+                            @@click.away="showNotifications = false"
+                             class="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                            <div class="px-4 py-3 border-b font-semibold text-gray-700">Notifications</div>
+                            <ul class="max-h-60 overflow-y-auto divide-y divide-gray-100">
+                                <template x-for="n in notifications" :key="n.id">
+                                    <li class="px-4 py-3 text-sm text-gray-600 hover:bg-gray-50"
+                                        :class="{ 'font-semibold': !n.read }"
+                                        x-text="n.message">
+                                    </li>
+                                </template>
+                                <li x-show="notifications.length === 0"
+                                    class="px-4 py-3 text-sm text-gray-400 text-center">
+                                    No notifications
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- User Info -->
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">
+                            @User.Identity?.Name?.Substring(0, 1).ToUpper()
+                        </div>
+                        <div class="text-sm">
+                            <div class="font-medium text-gray-700">@User.Identity?.Name</div>
+                            <div class="text-xs text-gray-400">
+                                @(User.IsInRole("Admin") ? "Administrator" :
+                                  User.IsInRole("Doctor") ? "Doctor" : "Pharmacist")
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </header>
+
+            <!-- Toast Notifications -->
+            <div x-data="toastStore()"
+                 x-show="toasts.length > 0"
+                 class="fixed top-5 right-5 z-50 space-y-2">
+                <template x-for="toast in toasts" :key="toast.id">
+                    <div :class="{
+                        'bg-green-500': toast.type === 'success',
+                        'bg-red-500': toast.type === 'error',
+                        'bg-yellow-500': toast.type === 'warning',
+                        'bg-blue-500': toast.type === 'info'
+                        }"
+                         class="text-white px-5 py-3 rounded-lg shadow-lg text-sm flex items-center gap-3 min-w-[250px]">
+                        <span x-text="toast.message"></span>
+                        <button @@click="removeToast(toast.id)" class="ml-auto font-bold">✕</button>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Page Content -->
+            <main class="flex-1 overflow-y-auto p-6">
+                @RenderBody()
+            </main>
+
+            <footer class="border-top footer text-muted">
+                <div class="container">
+                    &copy; 2026 - PharmTech - Louis Madisane - <a asp-controller="Home" asp-action="Privacy">Privacy</a>
+                </div>
+            </footer>
+
+        </div>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - PharmTech - Louis Madisane - <a asp-controller="Home" asp-action="Privacy">Privacy</a>
-        </div>
-    </footer>
-
-    <!-- Default Scripts -->
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- JS Files -->
     <script src="~/js/site.js" asp-append-version="true"></script>
-    <script src="~/js/notifications.js"></script>
-    <script src="~/js/auth.js"></script>
-    <script src="~/js/dashboard.js"></script>
-    <script src="~/js/pharmacy.js"></script>
-
-    <!-- SignalR Script (ADD HERE) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
-    <script src="~/wwwroot/js/js/notifications.js"></script>
+    <script src="~/js/notifications.js" asp-append-version="true"></script>
+    <script src="~/js/auth.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard.js" asp-append-version="true"></script>
+    <script src="~/js/pharmacy.js" asp-append-version="true"></script>
 
     @await RenderSectionAsync("Scripts", required: false)
 

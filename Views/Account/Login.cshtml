@@ -1,6 +1,121 @@
 ﻿@{
-    ViewData["Title"] = "Login"; // Page title shown in browser tab
-    Layout = "~/Views/Shared/_Layout.cshtml"; // Shared layout
+    ViewData["Title"] = "Login";
+    Layout = null;
 }
-<h1>Login</h1>
-<p>Content for this page will go here.</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - PharmTech</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .bg-pharmacy {
+            background-image: url('/images/pharmacy-bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        .bg-overlay {
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(2px);
+        }
+    </style>
+</head>
+<body class="bg-pharmacy min-h-screen">
+    <div class="bg-overlay min-h-screen flex items-center justify-center px-4">
+        <div class="w-full max-w-md">
+            <div class="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-gray-100">
+                <div class="text-center mb-8">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-teal-50 rounded-2xl mb-4">
+                        <span class="text-4xl">💊</span>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-800">PharmTech</h1>
+                    <p class="text-sm text-gray-400 mt-1">Smart Medicine. Seamless Care.</p>
+                    <div class="mt-2 h-1 w-12 bg-teal-500 rounded-full mx-auto"></div>
+                </div>
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div class="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 mb-6 text-sm">
+                        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                        {
+                            <p class="flex items-center gap-2">
+                                <span>⚠️</span> @error.ErrorMessage
+                            </p>
+                        }
+                    </div>
+                }
+                <form asp-controller="Account" asp-action="Login" method="post">
+                    @Html.AntiForgeryToken()
+                    <!--Email-->
+                    <div class="mb-4">
+                        <label for="email" class="block text-sm font-medium text-gray-600 mb-1.5">
+                            Email Address
+                        </label>
+                        <input type="email"
+                               id="email"
+                               name="email"
+                               required
+                               autocomplete="email"
+                               placeholder="you@pharmtech.com"
+                               class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:bg-white transition" />
+                    </div>
+                    <!--Password-->
+                    <div class="mb-6">
+                        <label for="password" class="block text-sm font-medium text-gray-600 mb-1.5">
+                            Password
+                        </label>
+                        <div class="relative">
+                            <input type="password"
+                                   id="password"
+                                   name="password"
+                                   required
+                                   autocomplete="current-password"
+                                   placeholder="••••••••"
+                                   class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:bg-white transition pr-10" />
+                            <button type="button"
+                                    onclick="togglePassword()"
+                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-teal-500 focus:outline-none transition">
+                                <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                <svg id="eye-off-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 4.411m0 0L21 21" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit"
+                            class="w-full bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white font-semibold py-2.5 rounded-xl transition duration-200 shadow-sm hover:shadow-md">
+                        Sign In
+                    </button>
+                </form>
+            </div>
+            <p class="text-center text-white/60 text-xs mt-6">
+                &copy; 2026 PharmTech &mdash; Louis Madisane
+            </p>
+        </div>
+    </div>
+    <script>
+        function togglePassword() {
+            const input = document.getElementById('password');
+            const eyeIcon = document.getElementById('eye-icon');
+            const eyeOffIcon = document.getElementById('eye-off-icon');
+
+            if (input.type === 'password') {
+                input.type = 'text';
+                eyeIcon.classList.add('hidden');
+                eyeOffIcon.classList.remove('hidden');
+            } else {
+                input.type = 'password';
+                eyeIcon.classList.remove('hidden');
+                eyeOffIcon.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

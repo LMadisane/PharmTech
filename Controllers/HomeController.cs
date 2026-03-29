@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PharmTech.Models;
 using System.Diagnostics;
 
 namespace PharmTech.Controllers
 {
+    [Authorize] //Require login for all home pages
     public class HomeController(ILogger<HomeController> logger) : Controller
     {
         private readonly ILogger<HomeController> _logger = logger;

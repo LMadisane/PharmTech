@@ -4,11 +4,10 @@ using PharmTech.Models;
 
 namespace PharmTech.Services
 {
-    // Hosted service that runs once a day and notifies via SignalR when inventory is below buffer
+    // Hosted service that runs once a day and checks for low stock and expiring medicines
     public class LowStockBackgroundService : BackgroundService
     {
         private readonly IServiceScopeFactory _scopeFactory;
-        // no SignalR hub context - service will only log and potentially create alerts in DB
         private readonly ILogger<LowStockBackgroundService> _logger;
 
         public LowStockBackgroundService(IServiceScopeFactory scopeFactory,
@@ -27,10 +26,11 @@ namespace PharmTech.Services
                 try
                 {
                     await CheckLowStockAsync(stoppingToken);
+                    await CheckExpiryDatesAsync(stoppingToken);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error while checking low stock");
+                    _logger.LogError(ex, "Error during background stock/expiry check");
                 }
 
                 // Wait until next day (24 hours)
@@ -46,24 +46,115 @@ namespace PharmTech.Services
             var db = scope.ServiceProvider.GetRequiredService<PharmTechContext>();
 
             // Load inventory items with related medicine and facility
-            var lowItems = await db.InventoryItems
+            var inventoryItems = await db.InventoryItems
                 .Include(ii => ii.Medicine)
                 .Include(ii => ii.Facility)
-                .Where(ii => ii.Medicine != null && ii.Quantity <= ii.Medicine.BufferQty)
+                .Where(ii => ii.Medicine != null)
                 .ToListAsync(cancellationToken);
 
-            if (lowItems.Count == 0)
+            // Load custom thresholds set by Admin
+            var thresholds = await db.StockThresholds
+                .ToListAsync(cancellationToken);
+
+            foreach (var item in inventoryItems)
             {
-                _logger.LogInformation("No low stock items found at {time}.", DateTimeOffset.Now);
-                return;
+                // Check if a custom threshold exists for this medicine/facility combo
+                var threshold = thresholds.FirstOrDefault(t =>
+                    t.MedId == item.MedId && t.FacilityId == item.FacilityId);
+
+                // Fall back to BufferQty on the medicine if no custom threshold is set
+                var minimumLevel = threshold?.MinimumStockLevel ?? item.Medicine.BufferQty;
+
+                if (item.Quantity <= minimumLevel)
+                {
+                    var message = $"Low stock: {item.Medicine.Name} at " +
+                                  $"{item.Facility?.Name ?? "Unknown"} — " +
+                                  $"Quantity: {item.Quantity}, Minimum: {minimumLevel}";
+
+                    _logger.LogInformation(message);
+
+                    // Avoid duplicate alerts - only create if one doesn't already exist today
+                    var alreadyAlerted = await db.SystemAlerts.AnyAsync(a =>
+                        a.AlertType == "LowStock" &&
+                        a.MedId == item.MedId &&
+                        a.FacilityId == item.FacilityId &&
+                        a.CreatedAt.Date == DateTime.Today,
+                        cancellationToken);
+
+                    if (!alreadyAlerted)
+                    {
+                        db.SystemAlerts.Add(new SystemAlert
+                        {
+                            AlertType = "LowStock",
+                            Message = message,
+                            MedId = item.MedId,
+                            FacilityId = item.FacilityId,
+                            IsRead = false,
+                            CreatedAt = DateTime.Now
+                        });
+                    }
+                }
             }
 
-            foreach (var item in lowItems)
+            await db.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Low stock check completed at {time}.", DateTimeOffset.Now);
+        }
+
+        private async Task CheckExpiryDatesAsync(CancellationToken cancellationToken)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<PharmTechContext>();
+
+            // Check for medicines expiring in 30, 60, or 90 days
+            var warningThresholds = new[] { 30, 60, 90 };
+
+            var medicines = await db.Medicines
+                .Where(m => m.ExpiryDate > DateTime.Today)
+                .ToListAsync(cancellationToken);
+
+            foreach (var medicine in medicines)
             {
-                var message = $"Low stock: {item.Medicine.Name} at {item.Facility?.Name ?? "Unknown"} - Quantity: {item.Quantity}, Buffer: {item.Medicine.BufferQty}";
-                _logger.LogInformation(message);
-                // Future: create database alerts or send emails here
+                var daysUntilExpiry = (medicine.ExpiryDate - DateTime.Today).Days;
+
+                foreach (var days in warningThresholds)
+                {
+                    if (daysUntilExpiry <= days)
+                    {
+                        var message = $"Expiry warning: {medicine.Name} " +
+                                      $"(Lot: {medicine.LotNumber}) expires in " +
+                                      $"{daysUntilExpiry} day(s) on " +
+                                      $"{medicine.ExpiryDate:dd MMM yyyy}";
+
+                        _logger.LogInformation(message);
+
+                        // Avoid duplicate alerts for the same expiry threshold today
+                        var alreadyAlerted = await db.SystemAlerts.AnyAsync(a =>
+                            a.AlertType == "ExpiryWarning" &&
+                            a.MedId == medicine.MedId &&
+                            a.CreatedAt.Date == DateTime.Today,
+                            cancellationToken);
+
+                        if (!alreadyAlerted)
+                        {
+                            db.SystemAlerts.Add(new SystemAlert
+                            {
+                                AlertType = "ExpiryWarning",
+                                Message = message,
+                                MedId = medicine.MedId,
+                                FacilityId = null, // Expiry is medicine-wide not facility specific
+                                IsRead = false,
+                                CreatedAt = DateTime.Now
+                            });
+                        }
+
+                        // Only create one alert per medicine per day
+                        break;
+                    }
+                }
             }
+
+            await db.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Expiry date check completed at {time}.", DateTimeOffset.Now);
         }
     }
 }

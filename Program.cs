@@ -21,7 +21,14 @@ builder.Services.AddAuthentication("Cookies")
     {
         options.LoginPath = "/account/login";
         options.AccessDeniedPath = "/account/accessdenied";
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; //Fixes the http/https mismatch
     });
+
+// Antiforgery cookie fix
+builder.Services.AddAntiforgery(options =>
+{
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; //Fixes the http/https mismatch
+});
 
 // Authorization - (Role-based)
 builder.Services.AddAuthorization();
@@ -48,8 +55,12 @@ using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<PharmTechContext>();
         logger.LogInformation("Ensuring database is created...");
-        db.Database.EnsureCreated();
+        db.Database.Migrate();
         logger.LogInformation("Database ensured/created.");
+
+        //Seeding default Admin account if no users exist
+        await DbSeeder.SeedAsync(db);
+        logger.LogInformation("Database seeding completed.");
     }
     catch (Exception ex)
     {
@@ -82,6 +93,6 @@ app.UseAuthorization();
 // Routes
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=Account}/{action=Login}/{id?}");
 
 app.Run();
