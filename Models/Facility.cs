@@ -16,5 +16,7 @@ namespace PharmTech.Models
         public virtual ICollection<User> Users { get; set; } = new List<User>();
         public virtual ICollection<InventoryItem> InventoryItems { get; set; } = new List<InventoryItem>();
         public virtual ICollection<OrderRequest> OrderRequests { get; set; } = new List<OrderRequest>();
+        public virtual ICollection<MedicineBatch> Batches { get; set; } = new List<MedicineBatch>();
+        public virtual ICollection<DisposalRecord> DisposalRecords { get; set; } = new List<DisposalRecord>();
     }
 }

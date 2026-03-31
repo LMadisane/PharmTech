@@ -13,10 +13,12 @@ namespace PharmTech.Data
         // DbSets for all models
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
         public DbSet<DispenseRecord> DispenseRecords { get; set; } = null!;
+        public DbSet<DisposalRecord> DisposalRecords { get; set; } = null!;
         public DbSet<DrugReturn> DrugReturns { get; set; } = null!;
         public DbSet<Facility> Facilities { get; set; } = null!;
         public DbSet<InventoryItem> InventoryItems { get; set; } = null!;
         public DbSet<Medicine> Medicines { get; set; } = null!;
+        public DbSet<MedicineBatch> MedicineBatches { get; set; } = null!;
         public DbSet<OrderRequest> OrderRequests { get; set; } = null!;
         public DbSet<Prescription> Prescriptions { get; set; } = null!;
         public DbSet<Receipt> Receipts { get; set; } = null!;
@@ -25,7 +27,6 @@ namespace PharmTech.Data
         public DbSet<Supplier> Suppliers { get; set; } = null!;
         public DbSet<SystemAlert> SystemAlerts { get; set; } = null!;
         public DbSet<User> Users { get; set; } = null!;
-
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -151,6 +152,42 @@ namespace PharmTech.Data
                 .HasOne(sa => sa.Facility)
                 .WithMany()
                 .HasForeignKey(sa => sa.FacilityId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // MedicineBatch
+            modelBuilder.Entity<MedicineBatch>()
+                .HasOne(mb => mb.Medicine)
+                .WithMany(m => m.Batches)
+                .HasForeignKey(mb => mb.MedId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<MedicineBatch>()
+                .HasOne(mb => mb.Facility)
+                .WithMany(f => f.Batches)
+                .HasForeignKey(mb => mb.FacilityId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Index for performance
+            modelBuilder.Entity<MedicineBatch>()
+                .HasIndex(mb => new { mb.MedId, mb.FacilityId });
+
+            // DisposalRecord
+            modelBuilder.Entity<DisposalRecord>()
+                .HasOne(d => d.Medicine)
+                .WithMany(m => m.DisposalRecords)
+                .HasForeignKey(d => d.MedId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<DisposalRecord>()
+                .HasOne(d => d.Facility)
+                .WithMany(f => f.DisposalRecords)
+                .HasForeignKey(d => d.FacilityId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<DisposalRecord>()
+                .HasOne(d => d.Batch)
+                .WithMany()
+                .HasForeignKey(d => d.BatchId)
                 .OnDelete(DeleteBehavior.SetNull);
         }
     }

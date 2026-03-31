@@ -3,84 +3,297 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
 using PharmTech.Models;
-
+using PharmTech.Models.DTOs;
+using System.Security.Claims;
 
 namespace PharmTech.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class DispensingController(PharmTechContext context) : ControllerBase
+    public class DispensingController : Controller
     {
-        private readonly PharmTechContext _context = context;
+        private readonly PharmTechContext _context;
+        private readonly ILogger<DispensingController> _logger;
 
-        // Getting Prescription by reference for pharmacist lookup
-        [HttpGet("{referenceCode}")]
-        [Authorize(Roles = "Pharmacist")] // Only Pharmacist looks up prescriptions for dispensing
-        public async Task<IActionResult> GetByReference(string referenceCode)
+        public DispensingController(PharmTechContext context, ILogger<DispensingController> logger)
         {
-            var prescription = await _context.Prescriptions
-                .Include(p => p.Patient)
-                .Include(p => p.Medicine)
-                .FirstOrDefaultAsync(p => p.ReferenceCode == referenceCode);
-
-            if (prescription == null)
-                return NotFound("Prescription not found");
-
-            return Ok(prescription);
+            _context = context;
+            _logger = logger;
         }
 
-        // Dispensing the medicine - Only Pharmacist can dispense
-        [HttpPost("dispense")]
-        [Authorize(Roles = "Pharmacist")] // Only Pharmacist can dispense drugs
-        public async Task<IActionResult> Dispense([FromBody] DispenseRecord request)
+        // ==================== VIEWS API====================
+
+        [Authorize(Roles = "Pharmacist")]
+        public IActionResult Index()
         {
-            var prescription = await _context.Prescriptions
-                .Include(p => p.Medicine)
-                .FirstOrDefaultAsync(p => p.PrescriptionId == request.PrescriptionId);
+            return View();
+        }
 
-            if (prescription == null)
-                return NotFound("Prescription not found");
-
-            if (prescription.Status == "Dispensed")
-                return BadRequest("Already dispensed");
-
-            // Calculating the required quantity
-            int requiredQty = prescription.DosagePerDay * prescription.DurationDays;
-
-            var inventory = await _context.InventoryItems
-                .FirstOrDefaultAsync(i =>
-                    i.MedId == prescription.MedId &&
-                    i.FacilityId == request.FacilityId);
-
-            if (inventory == null)
-                return BadRequest("Medicine not found in inventory");
-
-            if (inventory.Quantity < requiredQty)
-                return BadRequest("Insufficient stock");
-
-            // Deducting stock
-            inventory.Quantity -= requiredQty;
-
-            // Creating a dispense record
-            var record = new DispenseRecord
+        // ==================== API ENDPOINTS ====================
+        //Getting
+        [HttpGet("api/dispensing/{referenceCode}")]
+        [Authorize(Roles = "Pharmacist")]
+        public async Task<IActionResult> GetByReference(string referenceCode)
+        {
+            try
             {
-                PrescriptionId = prescription.PrescriptionId,
-                DispensedById = request.DispensedById,
-                QuantityDispensed = requiredQty
-            };
+                var prescription = await _context.Prescriptions
+                    .Include(p => p.Patient)
+                    .Include(p => p.Medicine)
+                    .FirstOrDefaultAsync(p => p.ReferenceCode == referenceCode);
 
-            _context.DispenseRecords.Add(record);
+                if (prescription == null)
+                    return NotFound(new { success = false, message = "Prescription not found" });
 
-            // Updating prescription
-            prescription.Status = "Dispensed";
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new
+                return Ok(new
+                {
+                    success = true,
+                    prescription = new
+                    {
+                        prescription.PrescriptionId,
+                        prescription.ReferenceCode,
+                        prescription.Status,
+                        patient = new
+                        {
+                            prescription.Patient.UserId,
+                            prescription.Patient.Name,
+                            prescription.Patient.Email
+                        },
+                        medicine = new
+                        {
+                            prescription.Medicine.MedId,
+                            prescription.Medicine.Name,
+                            prescription.Medicine.DosageForm
+                        },
+                        prescription.DosagePerDay,
+                        prescription.DurationDays,
+                        totalQuantity = prescription.DosagePerDay * prescription.DurationDays,
+                        prescription.PrescribedAt
+                    }
+                });
+            }
+            catch (Exception ex)
             {
-                message = "Dispensed successfully",
-                remainingStock = inventory.Quantity
-            });
+                _logger.LogError(ex, "Error looking up prescription {ReferenceCode}", referenceCode);
+                return StatusCode(500, new { success = false, message = "An error occurred" });
+            }
+        }
+
+        // Posting
+        [HttpPost("api/dispensing/dispense")]
+        [Authorize(Roles = "Pharmacist")]
+        public async Task<IActionResult> Dispense([FromBody] DispenseRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(new { success = false, message = "Invalid request data" });
+
+                // Find the prescription with related data
+                var prescription = await _context.Prescriptions
+                    .Include(p => p.Medicine)
+                    .Include(p => p.Patient)
+                    .FirstOrDefaultAsync(p => p.PrescriptionId == request.PrescriptionId);
+
+                if (prescription == null)
+                    return NotFound(new { success = false, message = "Prescription not found" });
+
+                // Check if already dispensed
+                if (prescription.Status == "Dispensed")
+                    return BadRequest(new { success = false, message = "This prescription has already been dispensed" });
+
+                // Calculate required quantity
+                int requiredQty = prescription.DosagePerDay * prescription.DurationDays;
+
+                // Find inventory at the facility
+                var inventory = await _context.InventoryItems
+                    .FirstOrDefaultAsync(i =>
+                        i.MedId == prescription.MedId &&
+                        i.FacilityId == request.FacilityId);
+
+                if (inventory == null)
+                    return BadRequest(new { success = false, message = "Medicine not found in inventory at this facility" });
+
+                // Check stock availability
+                if (inventory.Quantity < requiredQty)
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Insufficient stock",
+                        available = inventory.Quantity,
+                        required = requiredQty
+                    });
+
+                // Deduct stock using FIFO (oldest batches first)
+                var batches = await _context.MedicineBatches
+                    .Where(b => b.MedId == prescription.MedId &&
+                                b.FacilityId == request.FacilityId &&
+                                b.Quantity > 0)
+                    .OrderBy(b => b.ExpiryDate)
+                    .ToListAsync();
+
+                int remainingToDeduct = requiredQty;
+                foreach (var batch in batches)
+                {
+                    if (remainingToDeduct <= 0) break;
+
+                    int deductFromBatch = Math.Min(batch.Quantity, remainingToDeduct);
+                    batch.Quantity -= deductFromBatch;
+                    remainingToDeduct -= deductFromBatch;
+                }
+
+                // Update inventory summary
+                inventory.Quantity -= requiredQty;
+
+                // Create dispense record
+                var dispenseRecord = new DispenseRecord
+                {
+                    PrescriptionId = prescription.PrescriptionId,
+                    DispensedById = request.DispensedById,
+                    FacilityId = request.FacilityId,
+                    QuantityDispensed = requiredQty,
+                    DispensedAt = DateTime.Now
+                };
+
+                _context.DispenseRecords.Add(dispenseRecord);
+
+                // Update prescription status
+                prescription.Status = "Dispensed";
+
+                // Generate a receipt record
+                var receipt = new Receipt
+                {
+                    ReceiptNumber = $"DISP-{DateTime.Now:yyyyMMdd}-{prescription.PrescriptionId}",
+                    ReceiptType = "Dispense",
+                    GeneratedById = request.DispensedById,
+                    PatientName = prescription.Patient?.Name ?? "Unknown",
+                    MedicineName = prescription.Medicine?.Name ?? "Unknown",
+                    Quantity = requiredQty,
+                    Notes = $"Prescription: {prescription.ReferenceCode}",
+                    LinkedRecordId = prescription.PrescriptionId,
+                    GeneratedAt = DateTime.Now
+                };
+
+                _context.Receipts.Add(receipt);
+                await _context.SaveChangesAsync();
+
+                // Check if stock is now low and create alert if needed
+                await CheckLowStockAndAlert(prescription.MedId, request.FacilityId, inventory.Quantity);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Dispensed successfully",
+                    data = new
+                    {
+                        remainingStock = inventory.Quantity,
+                        dispenseRecord = new
+                        {
+                            dispenseRecord.DispenseRecordId,
+                            dispenseRecord.QuantityDispensed,
+                            dispenseRecord.DispensedAt
+                        },
+                        receipt = new
+                        {
+                            receipt.ReceiptId,
+                            receipt.ReceiptNumber,
+                            receipt.GeneratedAt
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error dispensing prescription {PrescriptionId}", request.PrescriptionId);
+                return StatusCode(500, new { success = false, message = "An error occurred while dispensing" });
+            }
+        }
+
+        [HttpGet("api/dispensing/prescription/{prescriptionId}/history")]
+        [Authorize(Roles = "Admin,Doctor,Pharmacist")]
+        public async Task<IActionResult> GetDispenseHistory(int prescriptionId)
+        {
+            try
+            {
+                var dispenses = await _context.DispenseRecords
+                    .Include(d => d.DispensedBy)
+                    .Include(d => d.Facility)
+                    .Where(d => d.PrescriptionId == prescriptionId)
+                    .OrderByDescending(d => d.DispensedAt)
+                    .Select(d => new
+                    {
+                        d.DispenseRecordId,
+                        d.QuantityDispensed,
+                        d.DispensedAt,
+                        dispensedBy = d.DispensedBy != null ? d.DispensedBy.Name : "Unknown",
+                        facility = d.Facility != null ? d.Facility.Name : "Unknown"
+                    })
+                    .ToListAsync();
+
+                return Ok(new { success = true, data = dispenses });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching dispense history for prescription {PrescriptionId}", prescriptionId);
+                return StatusCode(500, new { success = false, message = "An error occurred" });
+            }
+        }
+
+        
+        [HttpGet("api/dispensing/facilities")]
+        [Authorize(Roles = "Pharmacist")]
+        public async Task<IActionResult> GetFacilities()
+        {
+            try
+            {
+                var facilities = await _context.Facilities
+                    .Select(f => new { f.FacilityId, f.Name })
+                    .ToListAsync();
+
+                return Ok(new { success = true, data = facilities });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching facilities");
+                return StatusCode(500, new { success = false, message = "An error occurred" });
+            }
+        }
+
+        private async Task CheckLowStockAndAlert(int medId, int facilityId, int currentStock)
+        {
+            var medicine = await _context.Medicines.FindAsync(medId);
+            if (medicine == null) return;
+
+            var threshold = await _context.StockThresholds
+                .FirstOrDefaultAsync(t => t.MedId == medId && t.FacilityId == facilityId);
+
+            var minimumLevel = threshold?.MinimumStockLevel ?? medicine.BufferQty;
+
+            if (currentStock <= minimumLevel)
+            {
+                var existingAlert = await _context.SystemAlerts
+                    .FirstOrDefaultAsync(a =>
+                        a.AlertType == "LowStock" &&
+                        a.MedId == medId &&
+                        a.FacilityId == facilityId &&
+                        a.CreatedAt.Date == DateTime.Today);
+
+                if (existingAlert == null)
+                {
+                    var facility = await _context.Facilities.FindAsync(facilityId);
+                    var alert = new SystemAlert
+                    {
+                        AlertType = "LowStock",
+                        Message = $"Low stock alert: {medicine.Name} at {(facility?.Name ?? "Facility")} - " +
+                                  $"Only {currentStock} units remaining (minimum: {minimumLevel})",
+                        MedId = medId,
+                        FacilityId = facilityId,
+                        IsRead = false,
+                        CreatedAt = DateTime.Now
+                    };
+
+                    _context.SystemAlerts.Add(alert);
+                    await _context.SaveChangesAsync();
+                }
+            }
         }
     }
 }

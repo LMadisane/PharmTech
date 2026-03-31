@@ -14,6 +14,11 @@ namespace PharmTech.Models
         public virtual Medicine? Medicine { get; set; }
 
         [Required]
+        public int FacilityId { get; set; }
+        [ForeignKey("FacilityId")]
+        public virtual Facility? Facility { get; set; }
+
+        [Required]
         public int Quantity { get; set; }
 
         [Required]

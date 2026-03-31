@@ -1,13 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace PharmTech.Models.DTOs
 {
-    public class DispenseRecord
+    public class DispenseRequest
     {
-        public int PresentationId { get; set; }
+        [Required]
+        public int PrescriptionId { get; set; }
+
+        [Required]
         public int FacilityId { get; set; }
+
+        [Required]
         public int DispensedById { get; set; }
     }
 }

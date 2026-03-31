@@ -90,9 +90,64 @@ app.UseAuthentication();
 // User Authorization
 app.UseAuthorization();
 
-// Routes
+// ========== Routes ===========
+//Login Route
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Account}/{action=Login}/{id?}");
+
+// Reciepts Route
+app.MapControllerRoute(
+    name: "receipts",
+    pattern: "receipts/{action=Index}/{id?}",
+    defaults: new { controller = "Receipt" });
+
+// Dispensing Route
+app.MapControllerRoute(
+    name: "dispensing",
+    pattern: "dispensing/{action=Index}/{id?}",
+    defaults: new { controller = "Dispensing" });
+
+// Inventory Route
+app.MapControllerRoute(
+    name: "inventory",
+    pattern: "inventory/{action=Index}/{id?}",
+    defaults: new { controller = "Inventory" });
+
+// OrderRequest Route
+app.MapControllerRoute(
+    name: "orders",
+    pattern: "orders/{action=Index}/{id?}",
+    defaults: new { controller = "OrderRequest" });
+
+// DrugReturns Route
+app.MapControllerRoute(
+    name: "returns",
+    pattern: "returns/{action=Index}/{id?}",
+    defaults: new { controller = "DrugReturns" });
+
+// Prescription Route
+app.MapControllerRoute(
+    name: "prescriptions",
+    pattern: "prescriptions/{action=Index}/{id?}",
+    defaults: new { controller = "Prescription" });
+
+// UserManagement Route
+app.MapControllerRoute(
+    name: "users",
+    pattern: "users/{action=Index}/{id?}",
+    defaults: new { controller = "UserManagement" });
+
+// Supplier Route
+app.MapControllerRoute(
+    name: "suppliers",
+    pattern: "suppliers/{action=Index}/{id?}",
+    defaults: new { controller = "Supplier" });
+
+//AuditLogs Route
+app.MapControllerRoute(
+    name: "audit",
+    pattern: "audit/{action=Index}/{id?}",
+    defaults: new { controller = "AuditLogs" });
 
 app.Run();

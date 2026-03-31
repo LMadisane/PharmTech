@@ -1,0 +1,171 @@
+﻿@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<!-- Summary Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+
+    <!-- Total Medicines -->
+    <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+            <span class="text-2xl">💊</span>
+            <span class="text-xs font-medium text-teal-600 bg-teal-50 px-2 py-1 rounded-full">Medicines</span>
+        </div>
+        <p class="text-3xl font-bold text-gray-800">@ViewBag.TotalMedicines</p>
+        <p class="text-sm text-gray-400">Total Medicines</p>
+    </div>
+
+    <!-- Total Prescriptions -->
+    <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+            <span class="text-2xl">📋</span>
+            <span class="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">Prescriptions</span>
+        </div>
+        <p class="text-3xl font-bold text-gray-800">@ViewBag.TotalPrescriptions</p>
+        <p class="text-sm text-gray-400">Total Prescriptions</p>
+    </div>
+
+    <!-- Pending Orders -->
+    <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+            <span class="text-2xl">🛒</span>
+            <span class="text-xs font-medium text-yellow-600 bg-yellow-50 px-2 py-1 rounded-full">Orders</span>
+        </div>
+        <p class="text-3xl font-bold text-gray-800">@ViewBag.PendingOrders</p>
+        <p class="text-sm text-gray-400">Pending Orders</p>
+    </div>
+
+    <!-- Pending Returns -->
+    <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+            <span class="text-2xl">↩️</span>
+            <span class="text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full">Returns</span>
+        </div>
+        <p class="text-3xl font-bold text-gray-800">@ViewBag.PendingReturns</p>
+        <p class="text-sm text-gray-400">Pending Returns</p>
+    </div>
+
+    <!-- Total Users -->
+    @if (User.IsInRole("Admin"))
+    {
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100 flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+                <span class="text-2xl">👥</span>
+                <span class="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-full">Users</span>
+            </div>
+            <p class="text-3xl font-bold text-gray-800">@ViewBag.TotalUsers</p>
+            <p class="text-sm text-gray-400">Total Users</p>
+        </div>
+
+        <!-- Total Facilities -->
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100 flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+                <span class="text-2xl">🏥</span>
+                <span class="text-xs font-medium text-gray-600 bg-gray-50 px-2 py-1 rounded-full">Facilities</span>
+            </div>
+            <p class="text-3xl font-bold text-gray-800">@ViewBag.TotalFacilities</p>
+            <p class="text-sm text-gray-400">Total Facilities</p>
+        </div>
+    }
+
+</div>
+
+<!-- Alerts Banner -->
+@if (ViewBag.UnreadAlerts > 0)
+{
+    <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-2xl px-5 py-4 mb-6 flex items-center gap-3">
+        <span class="text-2xl">⚠️</span>
+        <div>
+            <p class="font-semibold">You have @ViewBag.UnreadAlerts unread system alert(s)</p>
+            <p class="text-sm text-yellow-600">Check inventory levels and expiry dates.</p>
+        </div>
+    </div>
+}
+
+<!-- Charts Row -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+    <!-- Stock Levels Chart -->
+    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+        <h2 class="text-base font-semibold text-gray-700 mb-4">📦 Stock Levels</h2>
+        @if (((List<string>)ViewBag.StockLabels).Any())
+        {
+            <canvas id="stockChart" height="200"></canvas>
+        }
+        else
+        {
+            <div class="flex items-center justify-center h-48 text-gray-400 text-sm">
+                No inventory data available yet.
+            </div>
+        }
+    </div>
+
+    <!-- Prescription Status Chart -->
+    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+        <h2 class="text-base font-semibold text-gray-700 mb-4">📋 Prescription Status</h2>
+        @if (ViewBag.TotalPrescriptions > 0)
+        {
+            <canvas id="prescriptionChart" height="200"></canvas>
+        }
+        else
+        {
+            <div class="flex items-center justify-center h-48 text-gray-400 text-sm">
+                No prescription data available yet.
+            </div>
+        }
+    </div>
+
+</div>
+
+<!-- Returns Chart -->
+<div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 mb-6">
+    <h2 class="text-base font-semibold text-gray-700 mb-4">↩️ Drug Returns by Medicine</h2>
+    @if (((List<string>)ViewBag.ReturnsLabels).Any())
+    {
+        <canvas id="returnsChart" height="100"></canvas>
+    }
+    else
+    {
+        <div class="flex items-center justify-center h-24 text-gray-400 text-sm">
+            No returns data available yet.
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Stock Levels Bar Chart
+        @if (((List<string>)ViewBag.StockLabels).Any())
+        {
+            <text>
+                renderStockChart('stockChart',
+                @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.StockLabels)),
+                @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.StockQuantities))
+                );
+            </text>
+        }
+
+        // Prescription Status Doughnut Chart
+        @if (ViewBag.TotalPrescriptions > 0)
+        {
+            <text>
+                renderPrescriptionChart('prescriptionChart',
+                @ViewBag.DispensedPrescriptions,
+                @ViewBag.PendingPrescriptions
+                );
+            </text>
+        }
+
+        // Drug Returns Bar Chart
+        @if (((List<string>)ViewBag.ReturnsLabels).Any())
+        {
+            <text>
+                renderReturnsChart('returnsChart',
+                @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.ReturnsLabels)),
+                @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.ReturnsQuantities))
+                );
+            </text>
+        }
+    </script>
+}

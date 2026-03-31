@@ -4,33 +4,33 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - PharmTech | Smart Medicine. Seamless Care.</title>
-
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <!-- Alpine.js -->
+    <style>
+        [x-cloak] {
+        display: none !important;
+        }</style>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
     <!-- Site CSS -->
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans">
-
+<body class="bg-teal-50 text-gray-800 font-sans">
     <!-- App Shell -->
     <div class="flex h-screen overflow-hidden" x-data="{ sidebarOpen: true }">
-
         <!-- Sidebar -->
         <aside :class="sidebarOpen ? 'w-64' : 'w-16'"
-               class="bg-blue-900 text-white flex flex-col transition-all duration-300 ease-in-out overflow-hidden">
-
+               class="bg-teal-800 text-white flex flex-col transition-all duration-300 ease-in-out overflow-hidden">
             <!-- Logo -->
-            <div class="flex items-center justify-between px-4 py-5 border-b border-blue-700">
-                <span x-show="sidebarOpen" class="text-xl font-bold tracking-wide">💊 PharmTech</span>
+            <div class="flex items-center justify-between px-4 py-5 border-b border-teal-700">
+                <div x-show="sidebarOpen" class="flex items-center gap-2">
+                    <span class="text-2xl">💊</span>
+                    <span class="text-lg font-bold tracking-wide text-white">PharmTech</span>
+                </div>
                 <button @@click="sidebarOpen = !sidebarOpen"
-                    class="text-white focus:outline-none ml-auto">
+                    class="text-teal-300 hover:text-white focus:outline-none ml-auto transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
                          viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -38,126 +38,115 @@
                     </svg>
                 </button>
             </div>
-
             <!-- Navigation Links -->
             <nav class="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
-
                 <!-- Dashboard - All Roles -->
                 <a asp-controller="Dashboard" asp-action="Index"
-                       class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                       class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
                     <span>📊</span>
                     <span x-show="sidebarOpen">Dashboard</span>
                 </a>
-
+                <!-- Receipts - All roles -->
+                <a asp-controller="Receipt" asp-action="Index"
+                       class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
+                    <span>🧾</span>
+                    <span x-show="sidebarOpen">Receipts</span>
+                </a>
                 <!-- Prescriptions - Admin, Doctor, Pharmacist -->
                 @if (User.IsInRole("Admin") || User.IsInRole("Doctor") || User.IsInRole("Pharmacist"))
                 {
                     <a asp-controller="PrescriptionView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
                         <span>📋</span>
                         <span x-show="sidebarOpen">Prescriptions</span>
                     </a>
                 }
-
                 <!-- Dispensing - Pharmacist only -->
                 @if (User.IsInRole("Pharmacist"))
                 {
-                    <a asp-controller="DispensingView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                    <a asp-controller="Dispensing" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
                         <span>💊</span>
                         <span x-show="sidebarOpen">Dispensing</span>
+                    
                     </a>
                 }
-
                 <!-- Drug Returns - Admin, Pharmacist -->
                 @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
                 {
                     <a asp-controller="DrugReturnsView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
                         <span>↩️</span>
                         <span x-show="sidebarOpen">Drug Returns</span>
                     </a>
                 }
-
                 <!-- Inventory - Admin, Pharmacist -->
                 @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
                 {
                     <a asp-controller="InventoryView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
                         <span>🏥</span>
                         <span x-show="sidebarOpen">Inventory</span>
                     </a>
                 }
-
                 <!-- Order Requests - Admin, Pharmacist -->
                 @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
                 {
                     <a asp-controller="OrderRequestView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
                         <span>🛒</span>
                         <span x-show="sidebarOpen">Order Requests</span>
                     </a>
                 }
-
                 <!-- Suppliers - Admin, Pharmacist -->
                 @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
                 {
                     <a asp-controller="SupplierView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
                         <span>🚚</span>
                         <span x-show="sidebarOpen">Suppliers</span>
                     </a>
                 }
-
                 <!-- Audit Logs - Admin only -->
                 @if (User.IsInRole("Admin"))
                 {
                     <a asp-controller="AuditLogView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
                         <span>🔍</span>
                         <span x-show="sidebarOpen">Audit Logs</span>
                     </a>
                 }
-
                 <!-- User Management - Admin only -->
                 @if (User.IsInRole("Admin"))
                 {
                     <a asp-controller="UserManagementView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
                         <span>👥</span>
                         <span x-show="sidebarOpen">User Management</span>
                     </a>
                 }
-
             </nav>
-
             <!-- Logout -->
-            <div class="px-2 py-4 border-t border-blue-700">
+            <div class="px-2 py-4 border-t border-teal-700">
                 <a asp-controller="Account" asp-action="Logout"
-                       class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-600 transition">
+                       class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-600 transition text-teal-100 hover:text-white">
                     <span>🚪</span>
                     <span x-show="sidebarOpen">Logout</span>
                 </a>
             </div>
-
         </aside>
-
         <!-- Main Content Area -->
         <div class="flex-1 flex flex-col overflow-hidden">
-
             <!-- Top Header -->
-            <header class="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
-
+            <header class="bg-white shadow-sm px-6 py-4 flex items-center justify-between border-b border-gray-200">
                 <!-- Page Title -->
                 <h1 class="text-xl font-semibold text-gray-700">@ViewData["Title"]</h1>
-
                 <!-- Right Side - User Info + Notifications -->
                 <div class="flex items-center gap-4" x-data="notificationStore()">
-
                     <!-- Notification Bell -->
                     <div class="relative">
                         <button @@click="toggleNotifications()"
-                            class="relative text-gray-500 hover:text-blue-600 focus:outline-none">
+                            class="relative text-gray-400 hover:text-teal-600 focus:outline-none transition">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
                                  viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -169,12 +158,13 @@
                                   class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">
                             </span>
                         </button>
-
                         <!-- Notification Dropdown -->
                         <div x-show="showNotifications"
                             @@click.away="showNotifications = false"
-                             class="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                            <div class="px-4 py-3 border-b font-semibold text-gray-700">Notifications</div>
+                             class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
+                            <div class="px-4 py-3 border-b font-semibold text-gray-700 text-sm">
+                                🔔 Notifications
+                            </div>
                             <ul class="max-h-60 overflow-y-auto divide-y divide-gray-100">
                                 <template x-for="n in notifications" :key="n.id">
                                     <li class="px-4 py-3 text-sm text-gray-600 hover:bg-gray-50"
@@ -189,64 +179,56 @@
                             </ul>
                         </div>
                     </div>
-
                     <!-- User Info -->
                     <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">
+                        <div class="w-9 h-9 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-bold shadow-sm">
                             @User.Identity?.Name?.Substring(0, 1).ToUpper()
                         </div>
                         <div class="text-sm">
                             <div class="font-medium text-gray-700">@User.Identity?.Name</div>
-                            <div class="text-xs text-gray-400">
+                            <div class="text-xs text-teal-600 font-medium">
                                 @(User.IsInRole("Admin") ? "Administrator" :
                                   User.IsInRole("Doctor") ? "Doctor" : "Pharmacist")
                             </div>
                         </div>
                     </div>
-
                 </div>
             </header>
-
             <!-- Toast Notifications -->
             <div x-data="toastStore()"
                  x-show="toasts.length > 0"
                  class="fixed top-5 right-5 z-50 space-y-2">
                 <template x-for="toast in toasts" :key="toast.id">
                     <div :class="{
-                        'bg-green-500': toast.type === 'success',
+                        'bg-teal-500': toast.type === 'success',
                         'bg-red-500': toast.type === 'error',
                         'bg-yellow-500': toast.type === 'warning',
                         'bg-blue-500': toast.type === 'info'
                         }"
-                         class="text-white px-5 py-3 rounded-lg shadow-lg text-sm flex items-center gap-3 min-w-[250px]">
+                         class="text-white px-5 py-3 rounded-xl shadow-lg text-sm flex items-center gap-3 min-w-[250px]">
                         <span x-text="toast.message"></span>
                         <button @@click="removeToast(toast.id)" class="ml-auto font-bold">✕</button>
                     </div>
                 </template>
             </div>
-
             <!-- Page Content -->
-            <main class="flex-1 overflow-y-auto p-6">
+            <main class="flex-1 overflow-y-auto p-6 bg-teal-50">
                 @RenderBody()
             </main>
-
-            <footer class="border-top footer text-muted">
-                <div class="container">
-                    &copy; 2026 - PharmTech - Louis Madisane - <a asp-controller="Home" asp-action="Privacy">Privacy</a>
-                </div>
+            <!-- Footer -->
+            <footer class="bg-teal-800 text-teal-200 px-6 py-3 text-sm text-center border-t border-teal-700">
+                &copy; 2026 - <span class="text-teal-300 font-medium">PharmTech</span> - Louis Madisane -
+                <a asp-controller="Home" asp-action="Privacy"
+                   class="text-teal-300 hover:text-teal-100 hover:underline transition">Privacy</a>
             </footer>
-
         </div>
     </div>
-
     <!-- JS Files -->
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/notifications.js" asp-append-version="true"></script>
     <script src="~/js/auth.js" asp-append-version="true"></script>
     <script src="~/js/dashboard.js" asp-append-version="true"></script>
     <script src="~/js/pharmacy.js" asp-append-version="true"></script>
-
     @await RenderSectionAsync("Scripts", required: false)
-
 </body>
 </html>

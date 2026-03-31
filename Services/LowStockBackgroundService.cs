@@ -108,29 +108,29 @@ namespace PharmTech.Services
             // Check for medicines expiring in 30, 60, or 90 days
             var warningThresholds = new[] { 30, 60, 90 };
 
-            var medicines = await db.Medicines
-                .Where(m => m.ExpiryDate > DateTime.Today)
+            var batches = await db.MedicineBatches
+                .Include(b => b.Medicine)
+                .Where(b => b.ExpiryDate > DateTime.Today && b.Quantity > 0)
                 .ToListAsync(cancellationToken);
 
-            foreach (var medicine in medicines)
+            foreach (var batch in batches)
             {
-                var daysUntilExpiry = (medicine.ExpiryDate - DateTime.Today).Days;
+                var daysUntilExpiry = (batch.ExpiryDate - DateTime.Today).Days;
 
                 foreach (var days in warningThresholds)
                 {
                     if (daysUntilExpiry <= days)
                     {
-                        var message = $"Expiry warning: {medicine.Name} " +
-                                      $"(Lot: {medicine.LotNumber}) expires in " +
+                        var message = $"Expiry warning: {batch.Medicine!.Name} " +
+                                      $"(Lot: {batch.LotNumber}) expires in " +
                                       $"{daysUntilExpiry} day(s) on " +
-                                      $"{medicine.ExpiryDate:dd MMM yyyy}";
+                                      $"{batch.ExpiryDate:dd MMM yyyy}";
 
                         _logger.LogInformation(message);
 
-                        // Avoid duplicate alerts for the same expiry threshold today
                         var alreadyAlerted = await db.SystemAlerts.AnyAsync(a =>
                             a.AlertType == "ExpiryWarning" &&
-                            a.MedId == medicine.MedId &&
+                            a.MedId == batch.MedId &&
                             a.CreatedAt.Date == DateTime.Today,
                             cancellationToken);
 
@@ -140,21 +140,20 @@ namespace PharmTech.Services
                             {
                                 AlertType = "ExpiryWarning",
                                 Message = message,
-                                MedId = medicine.MedId,
-                                FacilityId = null, // Expiry is medicine-wide not facility specific
+                                MedId = batch.MedId,
+                                FacilityId = batch.FacilityId,
                                 IsRead = false,
                                 CreatedAt = DateTime.Now
                             });
                         }
 
-                        // Only create one alert per medicine per day
                         break;
                     }
                 }
             }
-
             await db.SaveChangesAsync(cancellationToken);
             _logger.LogInformation("Expiry date check completed at {time}.", DateTimeOffset.Now);
         }
+
     }
 }

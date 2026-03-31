@@ -9,46 +9,29 @@ using QuestPDF.Infrastructure;
 
 namespace PharmTech.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class ReceiptController(PharmTechContext context) : ControllerBase
+    [Authorize(Roles = "Admin,Doctor,Pharmacist")]
+    public class ReceiptController : Controller
     {
-        private readonly PharmTechContext _context = context;
+        private readonly PharmTechContext _context;
+        private readonly ILogger<ReceiptController> _logger;
 
-        // Generate a receipt after dispensing - Pharmacist only
-        [HttpPost("generate")]
-        [Authorize(Roles = "Pharmacist")]
-        public async Task<IActionResult> GenerateReceipt([FromBody] Receipt receipt)
+        public ReceiptController(PharmTechContext context, ILogger<ReceiptController> logger)
         {
-            // Auto-generate receipt number
-            var count = await _context.Receipts.CountAsync();
-            receipt.ReceiptNumber = $"RCP-{DateTime.Now.Year}-{(count + 1):D4}";
-            receipt.GeneratedAt = DateTime.Now;
-
-            _context.Receipts.Add(receipt);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Receipt generated", receipt });
+            _context = context;
+            _logger = logger;
         }
 
-        // Get a single receipt by ID - All roles
-        [HttpGet("{id}")]
-        [Authorize(Roles = "Admin,Doctor,Pharmacist")]
-        public async Task<IActionResult> GetReceipt(int id)
+        // ==================== VIEW ====================
+
+        public IActionResult Index()
         {
-            var receipt = await _context.Receipts
-                .Include(r => r.GeneratedBy)
-                .FirstOrDefaultAsync(r => r.ReceiptId == id);
-
-            if (receipt == null)
-                return NotFound("Receipt not found");
-
-            return Ok(receipt);
+            return View();
         }
 
-        // Get all receipts with filters - All roles
-        [HttpGet]
-        [Authorize(Roles = "Admin,Doctor,Pharmacist")]
+        // ==================== API ENDPOINTS ====================
+
+        // GET: api/receipt
+        [HttpGet("api/receipt")]
         public async Task<IActionResult> GetReceipts(
             [FromQuery] string? patientName,
             [FromQuery] string? medicineName,
@@ -56,53 +39,116 @@ namespace PharmTech.Controllers
             [FromQuery] DateTime? from,
             [FromQuery] DateTime? to)
         {
-            var query = _context.Receipts
-                .Include(r => r.GeneratedBy)
-                .AsQueryable();
+            try
+            {
+                var query = _context.Receipts
+                    .Include(r => r.GeneratedBy)
+                    .AsQueryable();
 
-            // Apply filters
-            if (!string.IsNullOrEmpty(patientName))
-                query = query.Where(r => r.PatientName.Contains(patientName));
+                if (!string.IsNullOrEmpty(patientName))
+                    query = query.Where(r => r.PatientName.Contains(patientName));
 
-            if (!string.IsNullOrEmpty(medicineName))
-                query = query.Where(r => r.MedicineName.Contains(medicineName));
+                if (!string.IsNullOrEmpty(medicineName))
+                    query = query.Where(r => r.MedicineName.Contains(medicineName));
 
-            if (!string.IsNullOrEmpty(receiptType))
-                query = query.Where(r => r.ReceiptType == receiptType);
+                if (!string.IsNullOrEmpty(receiptType))
+                    query = query.Where(r => r.ReceiptType == receiptType);
 
-            if (from.HasValue)
-                query = query.Where(r => r.GeneratedAt >= from.Value);
+                if (from.HasValue)
+                    query = query.Where(r => r.GeneratedAt >= from.Value);
 
-            if (to.HasValue)
-                query = query.Where(r => r.GeneratedAt <= to.Value);
+                if (to.HasValue)
+                    query = query.Where(r => r.GeneratedAt <= to.Value);
 
-            var receipts = await query
-                .OrderByDescending(r => r.GeneratedAt)
-                .ToListAsync();
+                var receipts = await query
+                    .OrderByDescending(r => r.GeneratedAt)
+                    .Select(r => new
+                    {
+                        r.ReceiptId,
+                        r.ReceiptNumber,
+                        r.ReceiptType,
+                        r.PatientName,
+                        r.MedicineName,
+                        r.Quantity,
+                        r.GeneratedAt,
+                        generatedBy = r.GeneratedBy != null ? new { r.GeneratedBy.Name } : null
+                    })
+                    .ToListAsync();
 
-            return Ok(receipts);
+                return Ok(new { success = true, receipts = receipts });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching receipts");
+                return Ok(new { success = true, receipts = new List<object>() });
+            }
         }
 
-        // Download a single receipt as PDF - All roles
-        [HttpGet("{id}/download")]
-        [Authorize(Roles = "Admin,Doctor,Pharmacist")]
+        // GET: api/receipt/{id}
+        [HttpGet("api/receipt/{id}")]
+        public async Task<IActionResult> GetReceipt(int id)
+        {
+            try
+            {
+                var receipt = await _context.Receipts
+                    .Include(r => r.GeneratedBy)
+                    .FirstOrDefaultAsync(r => r.ReceiptId == id);
+
+                if (receipt == null)
+                    return Ok(new { success = false, message = "Receipt not found" });
+
+                return Ok(new
+                {
+                    success = true,
+                    receipt = new
+                    {
+                        receipt.ReceiptId,
+                        receipt.ReceiptNumber,
+                        receipt.ReceiptType,
+                        receipt.PatientName,
+                        receipt.MedicineName,
+                        receipt.Quantity,
+                        receipt.Notes,
+                        receipt.GeneratedAt,
+                        receipt.LinkedRecordId,
+                        generatedBy = receipt.GeneratedBy != null ? new { receipt.GeneratedBy.Name, receipt.GeneratedBy.Email } : null
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching receipt {Id}", id);
+                return Ok(new { success = false, message = "An error occurred" });
+            }
+        }
+
+        // GET: api/receipt/{id}/download
+        [HttpGet("api/receipt/{id}/download")]
         public async Task<IActionResult> DownloadReceipt(int id)
         {
-            var receipt = await _context.Receipts
-                .Include(r => r.GeneratedBy)
-                .FirstOrDefaultAsync(r => r.ReceiptId == id);
+            try
+            {
+                var receipt = await _context.Receipts
+                    .Include(r => r.GeneratedBy)
+                    .FirstOrDefaultAsync(r => r.ReceiptId == id);
 
-            if (receipt == null)
-                return NotFound("Receipt not found");
+                if (receipt == null)
+                    return NotFound();
 
-            // Generate PDF using QuestPDF
-            var pdf = GenerateSingleReceiptPdf(receipt);
+                QuestPDF.Settings.License = LicenseType.Community;
 
-            return File(pdf, "application/pdf", $"Receipt-{receipt.ReceiptNumber}.pdf");
+                var pdf = GenerateSingleReceiptPdf(receipt);
+                return File(pdf, "application/pdf", $"Receipt-{receipt.ReceiptNumber}.pdf");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error downloading receipt {Id}", id);
+                return StatusCode(500, new { success = false, message = "An error occurred" });
+            }
         }
 
-        // Download accumulated transaction history as PDF - Admin only
-        [HttpGet("download/history")]
+        // GET: api/receipt/download/history
+        [HttpGet("api/receipt/download/history")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DownloadTransactionHistory(
             [FromQuery] string? patientName,
@@ -111,44 +157,50 @@ namespace PharmTech.Controllers
             [FromQuery] DateTime? from,
             [FromQuery] DateTime? to)
         {
-            var query = _context.Receipts
-                .Include(r => r.GeneratedBy)
-                .AsQueryable();
+            try
+            {
+                var query = _context.Receipts
+                    .Include(r => r.GeneratedBy)
+                    .AsQueryable();
 
-            // Apply filters
-            if (!string.IsNullOrEmpty(patientName))
-                query = query.Where(r => r.PatientName.Contains(patientName));
+                if (!string.IsNullOrEmpty(patientName))
+                    query = query.Where(r => r.PatientName.Contains(patientName));
 
-            if (!string.IsNullOrEmpty(medicineName))
-                query = query.Where(r => r.MedicineName.Contains(medicineName));
+                if (!string.IsNullOrEmpty(medicineName))
+                    query = query.Where(r => r.MedicineName.Contains(medicineName));
 
-            if (!string.IsNullOrEmpty(receiptType))
-                query = query.Where(r => r.ReceiptType == receiptType);
+                if (!string.IsNullOrEmpty(receiptType))
+                    query = query.Where(r => r.ReceiptType == receiptType);
 
-            if (from.HasValue)
-                query = query.Where(r => r.GeneratedAt >= from.Value);
+                if (from.HasValue)
+                    query = query.Where(r => r.GeneratedAt >= from.Value);
 
-            if (to.HasValue)
-                query = query.Where(r => r.GeneratedAt <= to.Value);
+                if (to.HasValue)
+                    query = query.Where(r => r.GeneratedAt <= to.Value);
 
-            var receipts = await query
-                .OrderByDescending(r => r.GeneratedAt)
-                .ToListAsync();
+                var receipts = await query
+                    .OrderByDescending(r => r.GeneratedAt)
+                    .ToListAsync();
 
-            if (!receipts.Any())
-                return NotFound("No receipts found for the selected filters");
+                if (!receipts.Any())
+                    return NotFound();
 
-            // Generate bulk PDF using QuestPDF
-            var pdf = GenerateTransactionHistoryPdf(receipts, from, to);
+                QuestPDF.Settings.License = LicenseType.Community;
 
-            return File(pdf, "application/pdf", $"TransactionHistory-{DateTime.Now:yyyyMMdd}.pdf");
+                var pdf = GenerateTransactionHistoryPdf(receipts, from, to);
+                return File(pdf, "application/pdf", $"TransactionHistory-{DateTime.Now:yyyyMMdd-HHmmss}.pdf");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error downloading transaction history");
+                return StatusCode(500, new { success = false, message = "An error occurred" });
+            }
         }
 
-        // Generate a single receipt PDF
+        // ==================== PDF GENERATION ====================
+
         private byte[] GenerateSingleReceiptPdf(Receipt receipt)
         {
-            QuestPDF.Settings.License = LicenseType.Community;
-
             return Document.Create(container =>
             {
                 container.Page(page =>
@@ -159,7 +211,6 @@ namespace PharmTech.Controllers
 
                     page.Content().Column(col =>
                     {
-                        // Header
                         col.Item().Text("💊 PharmTech")
                             .Bold().FontSize(20).FontColor(Colors.Blue.Darken3);
 
@@ -168,7 +219,6 @@ namespace PharmTech.Controllers
 
                         col.Item().PaddingVertical(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
 
-                        // Receipt Info
                         col.Item().Text($"Receipt No: {receipt.ReceiptNumber}").Bold();
                         col.Item().Text($"Type: {receipt.ReceiptType}");
                         col.Item().Text($"Date: {receipt.GeneratedAt:dd MMM yyyy HH:mm}");
@@ -176,7 +226,6 @@ namespace PharmTech.Controllers
 
                         col.Item().PaddingVertical(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
 
-                        // Transaction Details
                         col.Item().Text("Transaction Details").Bold().FontSize(13);
                         col.Item().Text($"Patient: {receipt.PatientName}");
                         col.Item().Text($"Medicine: {receipt.MedicineName}");
@@ -187,7 +236,6 @@ namespace PharmTech.Controllers
 
                         col.Item().PaddingVertical(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
 
-                        // Footer
                         col.Item().Text("Thank you. This is an official PharmTech receipt.")
                             .FontSize(9).FontColor(Colors.Grey.Medium).Italic();
 
@@ -198,14 +246,8 @@ namespace PharmTech.Controllers
             }).GeneratePdf();
         }
 
-        // Generate bulk transaction history PDF
-        private byte[] GenerateTransactionHistoryPdf(
-            List<Receipt> receipts,
-            DateTime? from,
-            DateTime? to)
+        private byte[] GenerateTransactionHistoryPdf(List<Receipt> receipts, DateTime? from, DateTime? to)
         {
-            QuestPDF.Settings.License = LicenseType.Community;
-
             return Document.Create(container =>
             {
                 container.Page(page =>
@@ -216,14 +258,12 @@ namespace PharmTech.Controllers
 
                     page.Content().Column(col =>
                     {
-                        // Header
                         col.Item().Text("💊 PharmTech — Transaction History")
                             .Bold().FontSize(18).FontColor(Colors.Blue.Darken3);
 
                         col.Item().Text("Pharmacy Management System")
                             .FontSize(10).FontColor(Colors.Grey.Medium);
 
-                        // Date range
                         var rangeText = from.HasValue && to.HasValue
                             ? $"Period: {from:dd MMM yyyy} — {to:dd MMM yyyy}"
                             : $"Generated: {DateTime.Now:dd MMM yyyy HH:mm}";
@@ -232,26 +272,22 @@ namespace PharmTech.Controllers
 
                         col.Item().PaddingVertical(8).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
 
-                        // Summary
                         col.Item().Text($"Total Transactions: {receipts.Count}").Bold();
 
                         col.Item().PaddingVertical(8).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
 
-                        // Table
                         col.Item().Table(table =>
                         {
-                            // Define columns
                             table.ColumnsDefinition(columns =>
                             {
-                                columns.RelativeColumn(2); // Receipt No
-                                columns.RelativeColumn(1.5f); // Type
-                                columns.RelativeColumn(2); // Patient
-                                columns.RelativeColumn(2); // Medicine
-                                columns.RelativeColumn(1); // Qty
-                                columns.RelativeColumn(2); // Date
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(1.5f);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(1);
+                                columns.RelativeColumn(2);
                             });
 
-                            // Table header
                             table.Header(header =>
                             {
                                 header.Cell().Background(Colors.Blue.Darken3)
@@ -268,7 +304,6 @@ namespace PharmTech.Controllers
                                     .Padding(5).Text("Date").Bold().FontColor(Colors.White);
                             });
 
-                            // Table rows
                             foreach (var (r, index) in receipts.Select((r, i) => (r, i)))
                             {
                                 var bg = index % 2 == 0 ? Colors.White : Colors.Grey.Lighten3;
@@ -284,7 +319,6 @@ namespace PharmTech.Controllers
 
                         col.Item().PaddingVertical(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
 
-                        // Footer
                         col.Item().Text("© 2026 PharmTech — Louis Madisane — Confidential")
                             .FontSize(8).FontColor(Colors.Grey.Lighten1).Italic();
                     });

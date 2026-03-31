@@ -64,14 +64,26 @@ namespace PharmTech.Controllers
             if (returnItem.IsRestockable)
             {
                 var inventory = await _context.InventoryItems
-                    .FirstOrDefaultAsync(i => i.MedId == returnItem.MedId);
+                    .FirstOrDefaultAsync(i =>
+                    i.MedId == returnItem.MedId &&
+                    i.FacilityId == returnItem.FacilityId);
 
                 if (inventory != null)
                 {
+                    var newBatch = new MedicineBatch
+                    {
+                        MedId = returnItem.MedId,
+                        FacilityId = returnItem.FacilityId,
+                        LotNumber = "RETURN-" + Guid.NewGuid().ToString().Substring(0, 6),
+                        Quantity = returnItem.Quantity,
+                        ExpiryDate = DateTime.Now,
+                        IsFlagged = true
+                    };
+                    _context.MedicineBatches.Add(newBatch);
                     inventory.Quantity += returnItem.Quantity;
                 }
-            }
 
+            }
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Return approved", returnItem });
@@ -102,28 +114,44 @@ namespace PharmTech.Controllers
         [HttpPost("recall")]
         public async Task<IActionResult> RecallDrug(string lotNumber)
         {
-            var medicines = await _context.Medicines
-                .Where(m => m.LotNumber == lotNumber)
+            var batches = await _context.MedicineBatches
+                .Where(b => b.LotNumber == lotNumber && b.Quantity > 0)
                 .ToListAsync();
 
-            if (!medicines.Any())
-                return NotFound("No drugs found for this lot");
+            if (!batches.Any())
+                return NotFound("No batches found for this lot");
 
-            foreach (var med in medicines)
+            foreach (var batch in batches)
             {
-                var inventoryItems = await _context.InventoryItems
-                    .Where(i => i.MedId == med.MedId)
-                    .ToListAsync();
-
-                foreach (var item in inventoryItems)
+                // Move stock to disposal
+                var disposal = new DisposalRecord
                 {
-                    item.Quantity = 0;
-                }
+                    MedId = batch.MedId,
+                    FacilityId = batch.FacilityId,
+                    BatchId = batch.BatchId,
+                    Quantity = batch.Quantity,
+                    Reason = "Recalled",
+                    RecordedAt = DateTime.Now
+                };
+
+                _context.DisposalRecords.Add(disposal);
+
+                // Reduce inventory summary
+                var inventory = await _context.InventoryItems
+                    .FirstOrDefaultAsync(i =>
+                        i.MedId == batch.MedId &&
+                        i.FacilityId == batch.FacilityId);
+
+                if (inventory != null)
+                    inventory.Quantity -= batch.Quantity;
+
+                // Clear batch
+                batch.Quantity = 0;
             }
 
             await _context.SaveChangesAsync();
 
-            return Ok("Recall completed");
+            return Ok("Recall completed"); 
         }
     }
 }
