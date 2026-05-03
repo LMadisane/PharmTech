@@ -1,0 +1,246 @@
+﻿@{
+    ViewData["Title"] = "Create User";
+}
+
+<div x-data="createUserApp()" x-init="init()" class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center gap-3">
+            <a asp-controller="UserManagement" asp-action="Index" class="text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition">
+                ← Back to Users
+            </a>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">➕ Add New User</h1>
+        </div>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Create Doctor, Pharmacist, or Patient accounts</p>
+    </div>
+
+    <!-- Form Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        <form @@submit.prevent="submitUser()">
+            <!-- Full Name -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Full Name *</label>
+                <input type="text"
+                       x-model="form.name"
+                       required
+                       placeholder="e.g., Dr. John Smith"
+                       class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white">
+            </div>
+
+            <!-- Email -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Email Address *</label>
+                <input type="email"
+                       x-model="form.email"
+                       required
+                       placeholder="e.g., john.smith@pharmtech.com"
+                       class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white">
+            </div>
+
+            <!-- Role -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Role *</label>
+                <select x-model="form.role"
+                        required
+                        class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white">
+                    <option value="">Select a role...</option>
+                    <option value="Doctor">👨‍⚕️ Doctor</option>
+                    <option value="Pharmacist">💊 Pharmacist</option>
+                    <option value="Patient">👤 Patient</option>
+                </select>
+            </div>
+
+            <!-- Facility (optional) -->
+            <div class="mb-5" x-show="form.role !== 'Patient'">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Facility (Optional)</label>
+                <select x-model="form.facilityId"
+                        class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white">
+                    <option value="">No facility assigned</option>
+                    <template x-for="facility in facilities" :key="facility.facilityId">
+                        <option :value="facility.facilityId" x-text="facility.name"></option>
+                    </template>
+                </select>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Facility assignment is optional for Doctors and Pharmacists</p>
+            </div>
+
+            <!-- Password - Only show for Doctor and Pharmacist -->
+            <div class="mb-6" x-show="form.role !== 'Patient'">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Temporary Password *</label>
+                <input type="password"
+                       x-model="form.password"
+                       x-bind:required="form.role !== 'Patient'"
+                       minlength="6"
+                       placeholder="Minimum 6 characters"
+                       class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white">
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">User can change this after first login</p>
+            </div>
+
+            <!-- Message for Patient role -->
+            <div class="mb-6 bg-gray-50 dark:bg-gray-700 rounded-xl p-4" x-show="form.role === 'Patient'">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="text-sm text-gray-600 dark:text-gray-300">Patients do not need login credentials.</p>
+                </div>
+            </div>
+
+            <!-- Error Message -->
+            <div x-show="error" x-text="error" class="mb-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-xl px-4 py-2"></div>
+
+            <!-- Submit Buttons -->
+            <div class="flex gap-3">
+                <button type="submit"
+                        x-bind:disabled="submitting || !form.name || !form.email || !form.role || (form.role !== 'Patient' && (!form.password || form.password.length < 6))"
+                        class="flex-1 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-semibold px-6 py-3 rounded-xl transition duration-200">
+                    <span x-show="!submitting">✅ Create User</span>
+                    <span x-show="submitting" class="flex items-center justify-center gap-2">
+                        <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Creating...
+                    </span>
+                </button>
+                <a asp-controller="UserManagement" asp-action="Index"
+                       class="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold px-6 py-3 rounded-xl transition duration-200 text-center">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Success Modal -->
+    <div x-show="showSuccess"
+         x-cloak
+         x-transition.opacity.duration.300ms
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        @@click.away="showSuccess = false">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full mx-4 p-6" @@click.stop>
+            <div class="text-center">
+                <div class="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="text-3xl">✅</span>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-2">User Created!</h3>
+                <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">The user has been created successfully.</p>
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-4 text-left">
+                    <p class="text-sm text-gray-600 dark:text-gray-300"><strong>Name:</strong> <span x-text="createdUserName"></span></p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300"><strong>Email:</strong> <span x-text="createdUserEmail"></span></p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300"><strong>Role:</strong> <span x-text="createdUserRole"></span></p>
+                </div>
+                <div class="flex gap-3">
+                    <button @@click="resetForm()" class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-semibold px-4 py-2 rounded-xl transition">
+                        Create Another
+                    </button>
+                    <a asp-controller="UserManagement" asp-action="Index" class="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold px-4 py-2 rounded-xl transition text-center">
+                        View All Users
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+    <script>
+        function createUserApp() {
+            return {
+                facilities: [],
+                loadingFacilities: false,
+                submitting: false,
+                showSuccess: false,
+                createdUserName: '',
+                createdUserEmail: '',
+                createdUserRole: '',
+                error: null,
+                form: {
+                    name: '',
+                    email: '',
+                    role: '',
+                    facilityId: '',
+                    password: ''
+                },
+
+                init() {
+                    this.loadFacilities();
+                },
+
+                async loadFacilities() {
+                    this.loadingFacilities = true;
+                    try {
+                        const response = await fetch('/api/usermanagement/facilities');
+                        const result = await response.json();
+                        if (result.success) {
+                            this.facilities = result.facilities || [];
+                        }
+                    } catch (err) {
+                        console.error('Error loading facilities:', err);
+                    } finally {
+                        this.loadingFacilities = false;
+                    }
+                },
+
+                        async submitUser() {
+            this.submitting = true;
+            this.error = null;
+
+            // For patients, send empty password
+            let passwordValue = this.form.password;
+            if (this.form.role === 'Patient') {
+                passwordValue = '';
+            }
+
+            try {
+                const response = await fetch('/api/usermanagement/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: this.form.name,
+                        email: this.form.email,
+                        role: this.form.role,
+                        facilityId: this.form.facilityId ? parseInt(this.form.facilityId) : null,
+                        password: passwordValue
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    this.createdUserName = result.user.name;
+                    this.createdUserEmail = result.user.email;
+                    this.createdUserRole = result.user.role;
+                    this.showSuccess = true;
+                    showToast('User created successfully!', 'success');
+                } else {
+                    this.error = result.message || 'Failed to create user';
+                    showToast(this.error, 'error');
+                }
+            } catch (err) {
+                console.error('Error creating user:', err);
+                this.error = 'An error occurred while creating the user';
+                showToast(this.error, 'error');
+            } finally {
+                this.submitting = false;
+            }
+        },
+
+                resetForm() {
+                    this.showSuccess = false;
+                    this.form = {
+                        name: '',
+                        email: '',
+                        role: '',
+                        facilityId: '',
+                        password: ''
+                    };
+                    this.error = null;
+                }
+            }
+        }
+    </script>
+}

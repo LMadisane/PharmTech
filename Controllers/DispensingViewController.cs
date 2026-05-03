@@ -8,18 +8,18 @@ using System.Security.Claims;
 
 namespace PharmTech.Controllers
 {
-    public class DispensingController : Controller
+    public class DispensingViewController : Controller
     {
         private readonly PharmTechContext _context;
-        private readonly ILogger<DispensingController> _logger;
+        private readonly ILogger<DispensingViewController> _logger;
 
-        public DispensingController(PharmTechContext context, ILogger<DispensingController> logger)
+        public DispensingViewController(PharmTechContext context, ILogger<DispensingViewController> logger)
         {
             _context = context;
             _logger = logger;
         }
 
-        // ==================== VIEWS API====================
+        // ==================== VIEWS ====================
 
         [Authorize(Roles = "Pharmacist")]
         public IActionResult Index()
@@ -28,7 +28,7 @@ namespace PharmTech.Controllers
         }
 
         // ==================== API ENDPOINTS ====================
-        //Getting
+
         [HttpGet("api/dispensing/{referenceCode}")]
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> GetByReference(string referenceCode)
@@ -77,7 +77,6 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Posting
         [HttpPost("api/dispensing/dispense")]
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> Dispense([FromBody] DispenseRequest request)
@@ -87,7 +86,6 @@ namespace PharmTech.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(new { success = false, message = "Invalid request data" });
 
-                // Find the prescription with related data
                 var prescription = await _context.Prescriptions
                     .Include(p => p.Medicine)
                     .Include(p => p.Patient)
@@ -96,14 +94,11 @@ namespace PharmTech.Controllers
                 if (prescription == null)
                     return NotFound(new { success = false, message = "Prescription not found" });
 
-                // Check if already dispensed
                 if (prescription.Status == "Dispensed")
                     return BadRequest(new { success = false, message = "This prescription has already been dispensed" });
 
-                // Calculate required quantity
                 int requiredQty = prescription.DosagePerDay * prescription.DurationDays;
 
-                // Find inventory at the facility
                 var inventory = await _context.InventoryItems
                     .FirstOrDefaultAsync(i =>
                         i.MedId == prescription.MedId &&
@@ -112,7 +107,6 @@ namespace PharmTech.Controllers
                 if (inventory == null)
                     return BadRequest(new { success = false, message = "Medicine not found in inventory at this facility" });
 
-                // Check stock availability
                 if (inventory.Quantity < requiredQty)
                     return BadRequest(new
                     {
@@ -122,7 +116,6 @@ namespace PharmTech.Controllers
                         required = requiredQty
                     });
 
-                // Deduct stock using FIFO (oldest batches first)
                 var batches = await _context.MedicineBatches
                     .Where(b => b.MedId == prescription.MedId &&
                                 b.FacilityId == request.FacilityId &&
@@ -140,10 +133,8 @@ namespace PharmTech.Controllers
                     remainingToDeduct -= deductFromBatch;
                 }
 
-                // Update inventory summary
                 inventory.Quantity -= requiredQty;
 
-                // Create dispense record
                 var dispenseRecord = new DispenseRecord
                 {
                     PrescriptionId = prescription.PrescriptionId,
@@ -154,11 +145,8 @@ namespace PharmTech.Controllers
                 };
 
                 _context.DispenseRecords.Add(dispenseRecord);
-
-                // Update prescription status
                 prescription.Status = "Dispensed";
 
-                // Generate a receipt record
                 var receipt = new Receipt
                 {
                     ReceiptNumber = $"DISP-{DateTime.Now:yyyyMMdd}-{prescription.PrescriptionId}",
@@ -175,7 +163,6 @@ namespace PharmTech.Controllers
                 _context.Receipts.Add(receipt);
                 await _context.SaveChangesAsync();
 
-                // Check if stock is now low and create alert if needed
                 await CheckLowStockAndAlert(prescription.MedId, request.FacilityId, inventory.Quantity);
 
                 return Ok(new
@@ -237,7 +224,6 @@ namespace PharmTech.Controllers
             }
         }
 
-        
         [HttpGet("api/dispensing/facilities")]
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> GetFacilities()

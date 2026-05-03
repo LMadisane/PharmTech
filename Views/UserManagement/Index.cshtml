@@ -1,0 +1,314 @@
+﻿@{
+    ViewData["Title"] = "User Management";
+}
+
+<div x-data="userManagementApp()" x-init="init()" class="max-w-7xl mx-auto">
+
+    <!-- Header -->
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">👥 User Management</h1>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">Manage system users (Doctors, Pharmacists, Patients)</p>
+        </div>
+        <a href="/UserManagement/CreateUser"
+               class="bg-teal-600 hover:bg-teal-700 text-white font-semibold px-5 py-2.5 rounded-xl transition duration-200 text-sm flex items-center gap-2">
+            <span>➕</span> Add New User
+        </a>
+    </div>
+
+    <!-- Users Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Facility</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    <template x-for="user in users" :key="user.userId">
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                            <td class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-200" x-text="user.name"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="user.email"></td>
+                            <td class="px-6 py-4">
+                                <span :class="roleBadge(user.role)" class="px-2 py-1 text-xs font-semibold rounded-full">
+                                    <span x-text="user.role"></span>
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="user.facility || 'N/A'"></td>
+                            <td class="px-6 py-4">
+                                <span :class="user.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'"
+                                      class="px-2 py-1 text-xs font-semibold rounded-full">
+                                    <span x-text="user.isActive ? 'Active' : 'Inactive'"></span>
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <a :href="'/UserManagement/EditUser/' + user.userId"
+                                       class="text-teal-600 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300 text-sm font-medium mr-2 transition">
+                                    Edit
+                                </a>
+                                <button x-show="user.email !== 'admin@pharmtech.com'"
+                                    @@click="deleteUser(user.userId, user.name)"
+                                        class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium mr-2 transition">
+                                    Delete
+                                </button>
+                                <button x-show="user.isActive && user.email !== 'admin@pharmtech.com'"
+                                    @@click="deactivateUser(user.userId)"
+                                        class="text-yellow-600 hover:text-yellow-800 dark:text-yellow-400 dark:hover:text-yellow-300 text-sm font-medium mr-2 transition">
+                                    Deactivate
+                                </button>
+                                <button x-show="!user.isActive && user.email !== 'admin@pharmtech.com'"
+                                    @@click="reactivateUser(user.userId)"
+                                        class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 text-sm font-medium mr-2 transition">
+                                    Reactivate
+                                </button>
+                                <button @@click="resetPassword(user)"
+                                    class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium transition">
+                                    Reset Pwd
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="loading && users.length === 0">
+                        <td colspan="6" class="px-6 py-12 text-center">
+                            <div class="flex justify-center">
+                                <svg class="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </div>
+                            <p class="mt-2 text-gray-400 text-sm">Loading users...</p>
+                        </td>
+                    </tr>
+                    <tr x-show="!loading && users.length === 0">
+                        <td colspan="6" class="px-6 py-12 text-center">
+                            <div class="text-gray-400">
+                                <span class="text-4xl">📭</span>
+                                <p class="mt-2">No users found</p>
+                                <p class="text-xs mt-1">Click "Add New User" to create one</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div x-show="showResetModal"
+         x-cloak
+         x-transition.opacity.duration.300ms
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        @@click.away="closeResetModal()">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full" @@click.stop>
+            <div class="border-b border-gray-100 dark:border-gray-700 px-6 py-4 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-800 dark:text-white">Reset Password</h3>
+                <button @@click="closeResetModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6">
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Reset password for: <strong class="text-gray-800 dark:text-white" x-text="selectedUserName"></strong>
+                </p>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
+                    <input type="password"
+                           x-model="newPassword"
+                           placeholder="Enter new password (min 6 characters)"
+                           class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+                </div>
+                <div class="flex gap-3">
+                    <button @@click="submitResetPassword()"
+                        x-bind:disabled="!newPassword || newPassword.length < 6 || resetting"
+                        class="flex-1 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-semibold px-4 py-2 rounded-xl transition">
+                        <span x-show="!resetting">Reset Password</span>
+                        <span x-show="resetting" class="flex items-center justify-center gap-2">
+                            <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Resetting...
+                        </span>
+                    </button>
+                    <button @@click="closeResetModal()"
+                        class="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold px-4 py-2 rounded-xl transition">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+    <script>
+        function userManagementApp() {
+            return {
+                users: [],
+                loading: false,
+                error: null,
+                showResetModal: false,
+                selectedUserId: null,
+                selectedUserName: '',
+                newPassword: '',
+                resetting: false,
+
+                init() {
+                    this.loadUsers();
+                },
+
+                async loadUsers() {
+                    this.loading = true;
+                    this.error = null;
+                    try {
+                        const response = await fetch('/api/usermanagement/users');
+                        const result = await response.json();
+                        
+                        if (result && result.success) {
+                            this.users = result.users || [];
+                        } else {
+                            this.error = result?.message || 'Failed to load users';
+                            this.users = [];
+                        }
+                    } catch (err) {
+                        console.error('Error loading users:', err);
+                        this.error = err.message;
+                        this.users = [];
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async deactivateUser(id) {
+                    if (!confirm('Are you sure you want to deactivate this user?')) return;
+                    
+                    try {
+                        const response = await fetch(`/api/usermanagement/users/${id}/deactivate`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const result = await response.json();
+
+                        if (result.success) {
+                            showToast(result.message, 'success');
+                            this.loadUsers();
+                        } else {
+                            showToast(result.message || 'Failed to deactivate user', 'error');
+                        }
+                    } catch (err) {
+                        console.error('Error deactivating user:', err);
+                        showToast('An error occurred', 'error');
+                    }
+                },
+
+                async reactivateUser(id) {
+                    try {
+                        const response = await fetch(`/api/usermanagement/users/${id}/reactivate`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const result = await response.json();
+
+                        if (result.success) {
+                            showToast(result.message, 'success');
+                            this.loadUsers();
+                        } else {
+                            showToast(result.message || 'Failed to reactivate user', 'error');
+                        }
+                    } catch (err) {
+                        console.error('Error reactivating user:', err);
+                        showToast('An error occurred', 'error');
+                    }
+                },
+
+                async deleteUser(id, name) {
+                    if (!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) return;
+                    
+                    try {
+                        const response = await fetch(`/api/usermanagement/users/${id}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const result = await response.json();
+
+                        if (result.success) {
+                            showToast(result.message, 'success');
+                            this.loadUsers();
+                        } else {
+                            showToast(result.message || 'Failed to delete user', 'error');
+                        }
+                    } catch (err) {
+                        console.error('Error deleting user:', err);
+                        showToast('An error occurred', 'error');
+                    }
+                },
+
+                resetPassword(user) {
+                    this.selectedUserId = user.userId;
+                    this.selectedUserName = user.name;
+                    this.newPassword = '';
+                    this.showResetModal = true;
+                },
+
+                async submitResetPassword() {
+                    if (!this.newPassword || this.newPassword.length < 6) {
+                        showToast('Password must be at least 6 characters', 'error');
+                        return;
+                    }
+
+                    this.resetting = true;
+                    try {
+                        const response = await fetch(`/api/usermanagement/users/${this.selectedUserId}/reset-password`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ newPassword: this.newPassword })
+                        });
+                        const result = await response.json();
+
+                        if (result.success) {
+                            showToast(result.message, 'success');
+                            this.closeResetModal();
+                        } else {
+                            showToast(result.message || 'Failed to reset password', 'error');
+                        }
+                    } catch (err) {
+                        console.error('Error resetting password:', err);
+                        showToast('An error occurred', 'error');
+                    } finally {
+                        this.resetting = false;
+                    }
+                },
+
+                closeResetModal() {
+                    this.showResetModal = false;
+                    this.selectedUserId = null;
+                    this.selectedUserName = '';
+                    this.newPassword = '';
+                },
+
+                roleBadge(role) {
+                    const badges = {
+                        'Admin': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+                        'Doctor': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                        'Pharmacist': 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+                        'Patient': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                    };
+                    return badges[role] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+                }
+            }
+        }
+    </script>
+}

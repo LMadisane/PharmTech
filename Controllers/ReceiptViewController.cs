@@ -10,16 +10,10 @@ using QuestPDF.Infrastructure;
 namespace PharmTech.Controllers
 {
     [Authorize(Roles = "Admin,Doctor,Pharmacist")]
-    public class ReceiptController : Controller
+    public class ReceiptViewController(PharmTechContext context, ILogger<ReceiptViewController> logger) : Controller
     {
-        private readonly PharmTechContext _context;
-        private readonly ILogger<ReceiptController> _logger;
-
-        public ReceiptController(PharmTechContext context, ILogger<ReceiptController> logger)
-        {
-            _context = context;
-            _logger = logger;
-        }
+        private readonly PharmTechContext _context = context;
+        private readonly ILogger<ReceiptViewController> _logger = logger;
 
         // ==================== VIEW ====================
 
@@ -30,7 +24,6 @@ namespace PharmTech.Controllers
 
         // ==================== API ENDPOINTS ====================
 
-        // GET: api/receipt
         [HttpGet("api/receipt")]
         public async Task<IActionResult> GetReceipts(
             [FromQuery] string? patientName,
@@ -75,7 +68,7 @@ namespace PharmTech.Controllers
                     })
                     .ToListAsync();
 
-                return Ok(new { success = true, receipts = receipts });
+                return Ok(new { success = true, receipts });
             }
             catch (Exception ex)
             {
@@ -84,7 +77,6 @@ namespace PharmTech.Controllers
             }
         }
 
-        // GET: api/receipt/{id}
         [HttpGet("api/receipt/{id}")]
         public async Task<IActionResult> GetReceipt(int id)
         {
@@ -122,7 +114,6 @@ namespace PharmTech.Controllers
             }
         }
 
-        // GET: api/receipt/{id}/download
         [HttpGet("api/receipt/{id}/download")]
         public async Task<IActionResult> DownloadReceipt(int id)
         {
@@ -147,7 +138,6 @@ namespace PharmTech.Controllers
             }
         }
 
-        // GET: api/receipt/download/history
         [HttpGet("api/receipt/download/history")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DownloadTransactionHistory(
@@ -182,7 +172,7 @@ namespace PharmTech.Controllers
                     .OrderByDescending(r => r.GeneratedAt)
                     .ToListAsync();
 
-                if (!receipts.Any())
+                if (receipts.Count == 0)
                     return NotFound();
 
                 QuestPDF.Settings.License = LicenseType.Community;
@@ -199,7 +189,7 @@ namespace PharmTech.Controllers
 
         // ==================== PDF GENERATION ====================
 
-        private byte[] GenerateSingleReceiptPdf(Receipt receipt)
+        private static byte[] GenerateSingleReceiptPdf(Receipt receipt)
         {
             return Document.Create(container =>
             {
@@ -246,7 +236,7 @@ namespace PharmTech.Controllers
             }).GeneratePdf();
         }
 
-        private byte[] GenerateTransactionHistoryPdf(List<Receipt> receipts, DateTime? from, DateTime? to)
+        private static byte[] GenerateTransactionHistoryPdf(List<Receipt> receipts, DateTime? from, DateTime? to)
         {
             return Document.Create(container =>
             {

@@ -1,0 +1,133 @@
+﻿@{
+    ViewData["Title"] = "Facilities";
+}
+
+<div x-data="facilityApp()" x-init="init()" class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">🏥 Medical Facilities</h1>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">Manage healthcare facilities</p>
+        </div>
+        <a href="/Facility/CreateFacility"
+               class="bg-teal-600 hover:bg-teal-700 text-white font-semibold px-5 py-2.5 rounded-xl transition duration-200 text-sm flex items-center gap-2">
+            <span>➕</span> Add New Facility
+        </a>
+    </div>
+
+    <!-- Facilities Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Address</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Contact Info</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    <template x-for="facility in facilities" :key="facility.facilityId">
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                            <td class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-200" x-text="facility.name"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="facility.address || 'N/A'"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="facility.contactInfo || 'N/A'"></td>
+                            <td class="px-6 py-4">
+                                <a :href="'/Facility/EditFacility/' + facility.facilityId"
+                                       class="text-teal-600 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300 text-sm font-medium mr-3 transition">
+                                    Edit
+                                </a>
+                                <button @@click="deleteFacility(facility.facilityId, facility.name)"
+                                    class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium transition">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="loading && facilities.length === 0">
+                        <td colspan="4" class="px-6 py-12 text-center">
+                            <div class="flex justify-center">
+                                <svg class="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </div>
+                            <p class="mt-2 text-gray-400 text-sm">Loading facilities...</p>
+                        </td>
+                    </tr>
+                    <tr x-show="!loading && facilities.length === 0">
+                        <td colspan="4" class="px-6 py-12 text-center">
+                            <div class="text-gray-400">
+                                <span class="text-4xl">📭</span>
+                                <p class="mt-2">No facilities found</p>
+                                <p class="text-xs mt-1">Click "Add New Facility" to create one</p>
+                            </div>
+                        </table>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+    <script>
+        function facilityApp() {
+            return {
+                facilities: [],
+                loading: false,
+
+                init() {
+                    this.loadFacilities();
+                },
+
+                async loadFacilities() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/facility');
+                        const result = await response.json();
+                        
+                        if (result && result.success) {
+                            this.facilities = result.facilities || [];
+                        } else {
+                            this.facilities = [];
+                        }
+                    } catch (err) {
+                        console.error('Error loading facilities:', err);
+                        this.facilities = [];
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async deleteFacility(id, name) {
+                    if (!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) return;
+                    
+                    try {
+                        const response = await fetch(`/api/facility/${id}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const result = await response.json();
+
+                        if (result.success) {
+                            showToast(result.message, 'success');
+                            this.loadFacilities();
+                        } else {
+                            showToast(result.message || 'Failed to delete facility', 'error');
+                        }
+                    } catch (err) {
+                        console.error('Error deleting facility:', err);
+                        showToast('An error occurred', 'error');
+                    }
+                }
+            }
+        }
+    </script>
+}

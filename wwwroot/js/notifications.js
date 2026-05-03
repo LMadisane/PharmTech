@@ -1,6 +1,4 @@
-﻿// notifications.js - Alpine.js stores for notifications and toasts
-
-// Notification bell store - shows in-app notifications
+﻿// Notification bell store - shows in-app notifications
 function notificationStore() {
     return {
         showNotifications: false,
@@ -32,14 +30,18 @@ function notificationStore() {
         // Load notifications on init - checks for low stock warnings
         async init() {
             try {
-                const data = await apiFetch('/api/inventory/lowstock');
-                if (data && data.length > 0) {
-                    data.forEach(item => {
-                        this.addNotification(`⚠️ Low stock: ${item.medicine} (${item.quantity} remaining)`);
-                    });
+                const response = await fetch('/api/notifications/unread');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.length > 0) {
+                        data.forEach(item => {
+                            this.addNotification(item.message);
+                        });
+                    }
                 }
             } catch (err) {
-                console.error('Failed to load notifications:', err);
+                // Silently fail - API endpoint may not be ready yet
+                console.debug('Notifications not available yet');
             }
         }
     };

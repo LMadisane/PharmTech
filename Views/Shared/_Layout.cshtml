@@ -4,33 +4,78 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - PharmTech | Smart Medicine. Seamless Care.</title>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom Tailwind Config to enable dark mode -->
+    <script>
+        tailwind.config = {
+        darkMode: 'class'
+        }
+    </script>
+
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Alpine.js -->
+
+    <!-- Alpine.js Cloak - prevents flashing -->
     <style>
         [x-cloak] {
         display: none !important;
-        }</style>
+        }
+    </style>
+
+    <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
     <!-- Site CSS -->
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body class="bg-teal-50 text-gray-800 font-sans">
-    <!-- App Shell -->
-    <div class="flex h-screen overflow-hidden" x-data="{ sidebarOpen: true }">
+<body x-data="{
+    darkMode: localStorage.getItem('darkMode') === 'true',
+    sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false',
+    toggleDarkMode() {
+    this.darkMode = !this.darkMode;
+    localStorage.setItem('darkMode', this.darkMode);
+    if (this.darkMode) {
+    document.documentElement.classList.add('dark');
+    } else {
+    document.documentElement.classList.remove('dark');
+    }
+    },
+    toggleSidebar() {
+    this.sidebarOpen = !this.sidebarOpen;
+    localStorage.setItem('sidebarOpen', this.sidebarOpen);
+    }
+    }"
+      x-init="
+    if (darkMode) {
+    document.documentElement.classList.add('dark');
+    } else {
+    document.documentElement.classList.remove('dark');
+    }
+    "
+      :class="darkMode ? 'bg-gray-900 text-gray-100' : 'bg-teal-50 text-gray-800'"
+      class="font-sans transition-colors duration-300">
+
+    <div class="flex h-screen overflow-hidden">
+
         <!-- Sidebar -->
         <aside :class="sidebarOpen ? 'w-64' : 'w-16'"
-               class="bg-teal-800 text-white flex flex-col transition-all duration-300 ease-in-out overflow-hidden">
+               class="bg-teal-600 dark:bg-teal-900 text-white flex flex-col transition-all duration-300 ease-in-out overflow-hidden shadow-lg">
+
             <!-- Logo -->
-            <div class="flex items-center justify-between px-4 py-5 border-b border-teal-700">
-                <div x-show="sidebarOpen" class="flex items-center gap-2">
-                    <span class="text-2xl">💊</span>
-                    <span class="text-lg font-bold tracking-wide text-white">PharmTech</span>
+            <div class="flex items-center justify-between px-4 py-5 border-b border-teal-500 dark:border-teal-800">
+                <div x-show="sidebarOpen" class="flex items-center gap-3">
+                    <span class="text-3xl">💊</span>
+                    <span class="text-xl font-bold tracking-wide text-white">PharmTech</span>
                 </div>
-                <button @@click="sidebarOpen = !sidebarOpen"
-                    class="text-teal-300 hover:text-white focus:outline-none ml-auto transition">
+                <div x-show="!sidebarOpen" class="w-full">
+
+                    <!-- No pill when collapsed -->
+                </div>
+                <button @@click="toggleSidebar()"
+                    class="text-teal-200 hover:text-white focus:outline-none transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
                          viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -38,162 +83,301 @@
                     </svg>
                 </button>
             </div>
+
             <!-- Navigation Links -->
             <nav class="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
-                <!-- Dashboard - All Roles -->
+
+                <!-- Dashboard -->
                 <a asp-controller="Dashboard" asp-action="Index"
-                       class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
-                    <span>📊</span>
-                    <span x-show="sidebarOpen">Dashboard</span>
+                       class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                    <span x-show="sidebarOpen" class="whitespace-nowrap">Dashboard</span>
+                    <!-- Tooltip - always present, only shows on hover when sidebar is collapsed -->
+                    <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                        Dashboard
+                    </span>
                 </a>
-                <!-- Receipts - All roles -->
-                <a asp-controller="Receipt" asp-action="Index"
-                       class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
-                    <span>🧾</span>
-                    <span x-show="sidebarOpen">Receipts</span>
-                </a>
-                <!-- Prescriptions - Admin, Doctor, Pharmacist -->
+
+                <!-- Prescriptions -->
                 @if (User.IsInRole("Admin") || User.IsInRole("Doctor") || User.IsInRole("Pharmacist"))
                 {
-                    <a asp-controller="PrescriptionView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
-                        <span>📋</span>
-                        <span x-show="sidebarOpen">Prescriptions</span>
+                    <a asp-controller="Prescription" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">Prescriptions</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            Prescriptions
+                        </span>
                     </a>
                 }
-                <!-- Dispensing - Pharmacist only -->
+
+                <!-- Receipts -->
+                <a asp-controller="Receipt" asp-action="Index"
+                       class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                    <span x-show="sidebarOpen" class="whitespace-nowrap">Receipts</span>
+                    <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                        Receipts
+                    </span>
+                </a>
+
+                <!-- Dispensing -->
                 @if (User.IsInRole("Pharmacist"))
                 {
                     <a asp-controller="Dispensing" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
-                        <span>💊</span>
-                        <span x-show="sidebarOpen">Dispensing</span>
-                    
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">Dispensing</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            Dispensing
+                        </span>
                     </a>
                 }
-                <!-- Drug Returns - Admin, Pharmacist -->
+
+                <!-- Drug Returns -->
                 @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
                 {
                     <a asp-controller="DrugReturnsView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
-                        <span>↩️</span>
-                        <span x-show="sidebarOpen">Drug Returns</span>
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">Drug Returns</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            Drug Returns
+                        </span>
                     </a>
                 }
-                <!-- Inventory - Admin, Pharmacist -->
+
+                <!-- Inventory -->
                 @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
                 {
                     <a asp-controller="InventoryView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
-                        <span>🏥</span>
-                        <span x-show="sidebarOpen">Inventory</span>
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">Inventory</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            Inventory
+                        </span>
                     </a>
                 }
-                <!-- Order Requests - Admin, Pharmacist -->
+
+                <!-- Order Requests -->
                 @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
                 {
                     <a asp-controller="OrderRequestView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
-                        <span>🛒</span>
-                        <span x-show="sidebarOpen">Order Requests</span>
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">Order Requests</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            Order Requests
+                        </span>
                     </a>
                 }
-                <!-- Suppliers - Admin, Pharmacist -->
+
+                <!-- Suppliers -->
                 @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
                 {
                     <a asp-controller="SupplierView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
-                        <span>🚚</span>
-                        <span x-show="sidebarOpen">Suppliers</span>
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-1.5 6M17 13l1.5 6M9 21h6M12 21v-8" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">Suppliers</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            Suppliers
+                        </span>
                     </a>
                 }
-                <!-- Audit Logs - Admin only -->
+
+                <!-- Facilities -->
+                @if (User.IsInRole("Admin"))
+                {
+                    <a asp-controller="Facility" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">Facilities</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            Facilities
+                        </span>
+                    </a>
+                }
+
+                <!-- Audit Logs -->
                 @if (User.IsInRole("Admin"))
                 {
                     <a asp-controller="AuditLogView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
-                        <span>🔍</span>
-                        <span x-show="sidebarOpen">Audit Logs</span>
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">Audit Logs</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            Audit Logs
+                        </span>
                     </a>
                 }
-                <!-- User Management - Admin only -->
+
+                <!-- User Management -->
                 @if (User.IsInRole("Admin"))
                 {
-                    <a asp-controller="UserManagementView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-700 transition text-teal-100 hover:text-white">
-                        <span>👥</span>
-                        <span x-show="sidebarOpen">User Management</span>
+                    <a asp-controller="UserManagement" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">User Management</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            User Management
+                        </span>
                     </a>
                 }
+
             </nav>
+
             <!-- Logout -->
-            <div class="px-2 py-4 border-t border-teal-700">
+            <div class="px-2 py-4 border-t border-teal-500 dark:border-teal-800">
                 <a asp-controller="Account" asp-action="Logout"
-                       class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-600 transition text-teal-100 hover:text-white">
-                    <span>🚪</span>
-                    <span x-show="sidebarOpen">Logout</span>
+                       class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-500 transition text-white group relative">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    <span x-show="sidebarOpen" class="whitespace-nowrap">Logout</span>
+                    <span class="absolute left-14 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+                        Logout
+                    </span>
                 </a>
             </div>
         </aside>
+
         <!-- Main Content Area -->
         <div class="flex-1 flex flex-col overflow-hidden">
+
             <!-- Top Header -->
-            <header class="bg-white shadow-sm px-6 py-4 flex items-center justify-between border-b border-gray-200">
-                <!-- Page Title -->
-                <h1 class="text-xl font-semibold text-gray-700">@ViewData["Title"]</h1>
-                <!-- Right Side - User Info + Notifications -->
-                <div class="flex items-center gap-4" x-data="notificationStore()">
+            <header :class="darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'"
+                    class="shadow-sm px-6 py-4 flex items-center justify-between border-b transition-colors duration-300">
+
+                <h1 :class="darkMode ? 'text-teal-300' : 'text-gray-700'"
+                    class="text-xl font-semibold transition-colors duration-300">
+                    @ViewData["Title"]
+                </h1>
+
+                <div class="flex items-center gap-2">
+
+                    <!-- Dark Mode Toggle -->
+                    <button @@click="toggleDarkMode()"
+                        :class="darkMode ? 'text-teal-300 hover:bg-gray-700' : 'text-gray-400 hover:bg-gray-100'"
+                        class="relative focus:outline-none transition p-2 rounded-lg">
+                        <svg x-show="!darkMode" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        </svg>
+                        <svg x-show="darkMode" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                    </button>
+
                     <!-- Notification Bell -->
-                    <div class="relative">
+                    <div class="relative" x-data="notificationStore()">
                         <button @@click="toggleNotifications()"
-                            class="relative text-gray-400 hover:text-teal-600 focus:outline-none transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
-                                 viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                            :class="darkMode ? 'text-teal-300 hover:bg-gray-700' : 'text-gray-400 hover:bg-gray-100'"
+                            class="relative focus:outline-none transition p-2 rounded-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                             </svg>
-                            <!-- Badge -->
                             <span x-show="unreadCount > 0"
                                   x-text="unreadCount"
-                                  class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">
-                            </span>
+                                  class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1 min-w-[18px] text-center"></span>
                         </button>
+
                         <!-- Notification Dropdown -->
                         <div x-show="showNotifications"
                             @@click.away="showNotifications = false"
-                             class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
-                            <div class="px-4 py-3 border-b font-semibold text-gray-700 text-sm">
+                             :class="darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'"
+                             class="absolute right-0 mt-2 w-72 rounded-xl shadow-lg border z-50">
+                            <div :class="darkMode ? 'border-gray-700 text-teal-300' : 'border-gray-100 text-teal-700'"
+                                 class="px-4 py-3 border-b font-semibold text-sm">
                                 🔔 Notifications
                             </div>
                             <ul class="max-h-60 overflow-y-auto divide-y divide-gray-100">
                                 <template x-for="n in notifications" :key="n.id">
-                                    <li class="px-4 py-3 text-sm text-gray-600 hover:bg-gray-50"
+                                    <li :class="darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-teal-50'"
+                                        class="px-4 py-3 text-sm transition"
                                         :class="{ 'font-semibold': !n.read }"
-                                        x-text="n.message">
-                                    </li>
+                                        x-text="n.message"></li>
                                 </template>
                                 <li x-show="notifications.length === 0"
-                                    class="px-4 py-3 text-sm text-gray-400 text-center">
+                                    :class="darkMode ? 'text-gray-500' : 'text-gray-400'"
+                                    class="px-4 py-3 text-sm text-center">
                                     No notifications
                                 </li>
                             </ul>
                         </div>
                     </div>
+
                     <!-- User Info -->
-                    <div class="flex items-center gap-2">
-                        <div class="w-9 h-9 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-bold shadow-sm">
-                            @User.Identity?.Name?.Substring(0, 1).ToUpper()
-                        </div>
-                        <div class="text-sm">
-                            <div class="font-medium text-gray-700">@User.Identity?.Name</div>
-                            <div class="text-xs text-teal-600 font-medium">
-                                @(User.IsInRole("Admin") ? "Administrator" :
-                                  User.IsInRole("Doctor") ? "Doctor" : "Pharmacist")
+                    <div class="relative" x-data="{ showUserMenu: false }">
+                        <button @@click="showUserMenu = !showUserMenu"
+                            class="flex items-center gap-2 focus:outline-none group">
+                            <div class="w-9 h-9 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-bold shadow-sm group-hover:bg-teal-700 transition">
+                                @User.Identity?.Name?.Substring(0, 1).ToUpper()
+                            </div>
+                            <div class="text-sm text-left hidden sm:block">
+                                <div :class="darkMode ? 'text-gray-200' : 'text-gray-700'"
+                                     class="font-medium transition-colors duration-300">
+                                    @User.Identity?.Name
+                                </div>
+                                <div class="text-xs text-teal-500 font-medium">
+                                    @(User.IsInRole("Admin") ? "Administrator" : User.IsInRole("Doctor") ? "Doctor" : "Pharmacist")
+                                </div>
+                            </div>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <!-- User Dropdown -->
+                        <div x-show="showUserMenu"
+                            @@click.away="showUserMenu = false"
+                             :class="darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'"
+                             class="absolute right-0 mt-2 w-48 rounded-xl shadow-lg border z-50">
+                            <div :class="darkMode ? 'border-gray-700' : 'border-gray-200'"
+                                 class="px-4 py-3 border-b">
+                                <p :class="darkMode ? 'text-gray-200' : 'text-gray-700'"
+                                   class="text-sm font-medium">@User.Identity?.Name</p>
+                                <p :class="darkMode ? 'text-gray-400' : 'text-gray-500'"
+                                       class="text-xs">
+                                    @(User.IsInRole("Admin") ? "Administrator" : User.IsInRole("Doctor") ? "Doctor" : "Pharmacist")
+                                </p>
+                            </div>
+                            <div class="py-1">
+                                <a asp-controller="Account" asp-action="Logout"
+                                       class="flex items-center gap-3 px-4 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition w-full text-left">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                    </svg>
+                                    <span>Logout</span>
+                                </a>
                             </div>
                         </div>
                     </div>
+
                 </div>
             </header>
+
             <!-- Toast Notifications -->
             <div x-data="toastStore()"
                  x-show="toasts.length > 0"
@@ -211,24 +395,31 @@
                     </div>
                 </template>
             </div>
+
             <!-- Page Content -->
-            <main class="flex-1 overflow-y-auto p-6 bg-teal-50">
+            <main :class="darkMode ? 'bg-gray-900' : 'bg-teal-50'"
+                  class="flex-1 overflow-y-auto p-6 transition-colors duration-300">
                 @RenderBody()
             </main>
+
             <!-- Footer -->
-            <footer class="bg-teal-800 text-teal-200 px-6 py-3 text-sm text-center border-t border-teal-700">
-                &copy; 2026 - <span class="text-teal-300 font-medium">PharmTech</span> - Louis Madisane -
+            <footer class="bg-teal-600 dark:bg-teal-900 text-white px-6 py-3 text-sm text-center border-t border-teal-500 transition-colors duration-300 mt-auto">
+                &copy; 2026 - <span class="text-teal-200 font-medium">PharmTech</span> - Louis Madisane -
                 <a asp-controller="Home" asp-action="Privacy"
-                   class="text-teal-300 hover:text-teal-100 hover:underline transition">Privacy</a>
+                   class="text-teal-200 hover:text-white hover:underline transition">Privacy</a>
             </footer>
+
         </div>
     </div>
+
     <!-- JS Files -->
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/notifications.js" asp-append-version="true"></script>
     <script src="~/js/auth.js" asp-append-version="true"></script>
     <script src="~/js/dashboard.js" asp-append-version="true"></script>
     <script src="~/js/pharmacy.js" asp-append-version="true"></script>
+
     @await RenderSectionAsync("Scripts", required: false)
+
 </body>
 </html>

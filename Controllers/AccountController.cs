@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
 using PharmTech.Models;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace PharmTech.Controllers
 {
@@ -18,7 +20,7 @@ namespace PharmTech.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login(string email, string password)
         {
-            // Check user exists and password is correct
+            // Check user exists
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
 
             if (user == null || !VerifyPassword(password, user.PasswordHash))
@@ -44,12 +46,12 @@ namespace PharmTech.Controllers
 
             // Build claims for cookie-based RBAC
             var claims = new List<Claim>
-    {
-        new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-        new Claim(ClaimTypes.Name, user.Name),
-        new Claim(ClaimTypes.Email, user.Email),
-        new Claim(ClaimTypes.Role, user.Role)
-    };
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+                new Claim(ClaimTypes.Name, user.Name),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, user.Role)
+            };
 
             var identity = new ClaimsIdentity(claims, "Cookies");
             var principal = new ClaimsPrincipal(identity);
@@ -61,13 +63,16 @@ namespace PharmTech.Controllers
             HttpContext.Session.SetInt32("UserId", user.UserId);
             HttpContext.Session.SetString("Role", user.Role);
 
-            return RedirectToAction("Index", "Dashboard"); // landing page
+            return RedirectToAction("Index", "Dashboard");
         }
 
         private static bool VerifyPassword(string password, string hash)
         {
-            // Replace with real hash check (BCrypt / SHA)
-            return password == hash; // placeholder
+            // Hash the entered password using SHA256 and compare
+            using var sha256 = SHA256.Create();
+            var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+            var hashedPassword = Convert.ToBase64String(hashedBytes);
+            return hashedPassword == hash;
         }
 
         [HttpGet("logout")]

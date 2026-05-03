@@ -1,0 +1,166 @@
+﻿@{
+    ViewData["Title"] = "Edit Facility";
+}
+
+<div x-data="editFacilityApp()" x-init="init()" class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center gap-3">
+            <a asp-controller="Facility" asp-action="Index" class="text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition">
+                ← Back to Facilities
+            </a>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Edit Facility</h1>
+        </div>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Update facility information</p>
+    </div>
+
+    <!-- Loading State -->
+    <div x-show="loading" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
+        <div class="flex justify-center">
+            <svg class="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        </div>
+        <p class="mt-2 text-gray-400 text-sm">Loading facility data...</p>
+    </div>
+
+    <!-- Form Card -->
+    <div x-show="!loading" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        <form @@submit.prevent="updateFacility()">
+            <!-- Facility Name -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Facility Name *</label>
+                <input type="text"
+                       x-model="form.name"
+                       required
+                       class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white">
+            </div>
+
+            <!-- Address -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Address</label>
+                <textarea x-model="form.address"
+                          rows="2"
+                          class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white"></textarea>
+            </div>
+
+            <!-- Contact Info -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Contact Information</label>
+                <input type="text"
+                       x-model="form.contactInfo"
+                       class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white">
+            </div>
+
+            <!-- Error Message -->
+            <div x-show="error" x-text="error" class="mb-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-xl px-4 py-2"></div>
+
+            <!-- Submit Buttons -->
+            <div class="flex gap-3">
+                <button type="submit"
+                        x-bind:disabled="updating || !form.name"
+                        class="flex-1 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-semibold px-6 py-3 rounded-xl transition duration-200">
+                    <span x-show="!updating">Save Changes</span>
+                    <span x-show="updating" class="flex items-center justify-center gap-2">
+                        <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Saving...
+                    </span>
+                </button>
+                <a asp-controller="Facility" asp-action="Index" class="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold px-6 py-3 rounded-xl transition duration-200 text-center">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+    <script>
+        function editFacilityApp() {
+            return {
+                facilityId: null,
+                loading: true,
+                updating: false,
+                error: null,
+                form: {
+                    name: '',
+                    address: '',
+                    contactInfo: ''
+                },
+
+                init() {
+                    // Get facility ID from URL
+                    const path = window.location.pathname;
+                    const parts = path.split('/');
+                    this.facilityId = parts[parts.length - 1];
+                    this.loadFacility();
+                },
+
+                async loadFacility() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch(`/api/facility/${this.facilityId}`);
+                        const result = await response.json();
+                        
+                        if (result && result.success) {
+                            this.form.name = result.facility.name;
+                            this.form.address = result.facility.address || '';
+                            this.form.contactInfo = result.facility.contactInfo || '';
+                        } else {
+                            this.error = result.message || 'Failed to load facility';
+                            showToast(this.error, 'error');
+                        }
+                    } catch (err) {
+                        console.error('Error loading facility:', err);
+                        this.error = 'An error occurred while loading the facility';
+                        showToast(this.error, 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async updateFacility() {
+                    this.updating = true;
+                    this.error = null;
+
+                    try {
+                        const response = await fetch(`/api/facility/${this.facilityId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: this.form.name,
+                                address: this.form.address,
+                                contactInfo: this.form.contactInfo
+                            })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            showToast('Facility updated successfully!', 'success');
+                            window.location.href = '/Facility/Index';
+                        } else {
+                            this.error = result.message || 'Failed to update facility';
+                            showToast(this.error, 'error');
+                        }
+                    } catch (err) {
+                        console.error('Error updating facility:', err);
+                        this.error = 'An error occurred while updating the facility';
+                        showToast(this.error, 'error');
+                    } finally {
+                        this.updating = false;
+                    }
+                }
+            }
+        }
+    </script>
+}
