@@ -1,0 +1,319 @@
+﻿@using System.Security.Claims
+
+@{
+    ViewData["Title"] = "Drug Returns";
+    var isAdmin = User.IsInRole("Admin");
+    var isPharmacist = User.IsInRole("Pharmacist");
+}
+
+<div x-data="drugReturnsApp()" x-init="init()" class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">↩️ Drug Returns</h1>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">Manage medication returns from patients</p>
+        </div>
+        @if (isPharmacist)
+        {
+            <a href="/DrugReturns/CreateReturn"
+               class="bg-teal-600 hover:bg-teal-700 text-white font-semibold px-5 py-2.5 rounded-xl transition duration-200 text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                New Return Request
+            </a>
+        }
+    </div>
+
+    <!-- Tabs -->
+    <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
+        <ul class="flex flex-wrap -mb-px text-sm font-medium text-center">
+            <li class="mr-2">
+                <button @@click="activeTab = 'pending'"
+                        :class="activeTab === 'pending' ? 'border-teal-600 text-teal-600 dark:border-teal-400 dark:text-teal-400' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-400'"
+                        class="inline-block p-4 border-b-2 rounded-t-lg transition">
+                    ⏳ Pending (<span x-text="pendingReturns.length"></span>)
+                </button>
+            </li>
+            <li class="mr-2">
+                <button @@click="activeTab = 'approved'"
+                        :class="activeTab === 'approved' ? 'border-teal-600 text-teal-600 dark:border-teal-400 dark:text-teal-400' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-400'"
+                        class="inline-block p-4 border-b-2 rounded-t-lg transition">
+                    ✅ Approved
+                </button>
+            </li>
+            <li class="mr-2">
+                <button @@click="activeTab = 'rejected'"
+                        :class="activeTab === 'rejected' ? 'border-teal-600 text-teal-600 dark:border-teal-400 dark:text-teal-400' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-400'"
+                        class="inline-block p-4 border-b-2 rounded-t-lg transition">
+                    ❌ Rejected
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Pending Returns Tab -->
+    <div x-show="activeTab === 'pending'">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Patient</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Medicine</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Quantity</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Reason</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Restock</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                        <template x-for="returnItem in pendingReturns" :key="returnItem.returnId">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                                <td class="px-6 py-4 text-sm text-gray-800 dark:text-gray-200" x-text="returnItem.patientName"></td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="returnItem.medicineName"></td>
+                                <td class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-200" x-text="returnItem.quantity"></td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="returnItem.reason"></td>
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400" x-text="formatDate(returnItem.processedAt)"></td>
+                                <td class="px-6 py-4">
+                                    <span x-show="returnItem.isRestockable" class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-2 py-1 text-xs font-semibold rounded-full">Yes</span>
+                                    <span x-show="!returnItem.isRestockable" class="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-2 py-1 text-xs font-semibold rounded-full">No</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @if (isAdmin)
+                                    {
+                                        <button @@click="approveReturn(returnItem.returnId)"
+                                                class="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition mr-2">
+                                            Approve
+                                        </button>
+                                        <button @@click="rejectReturn(returnItem.returnId)"
+                                                class="bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition">
+                                            Reject
+                                        </button>
+                                    }
+                                    @if (isPharmacist && !isAdmin)
+                                    {
+                                        <span class="text-gray-400 text-xs">Pending Admin Review</span>
+                                    }
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="loading && pendingReturns.length == 0">
+                            <td colspan="7" class="px-6 py-12 text-center">
+                                <div class="flex justify-center">
+                                    <svg class="animate-spin h-8 w-8 text-teal-500" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                    </svg>
+                                </div>
+                            </td
+                            </tr>
+                        <tr x-show="!loading && pendingReturns.length == 0">
+                            <td colspan="7" class="px-6 py-12 text-center text-gray-400 dark:text-gray-500">
+                                <span class="text-4xl">📭</span>
+                                <p class="mt-2">No pending return requests</p>
+                            </td
+                            </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approved Returns Tab -->
+    <div x-show="activeTab === 'approved'">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Patient</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Medicine</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Quantity</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Reason</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Approved Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Restocked</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                        <template x-for="returnItem in approvedReturns" :key="returnItem.returnId">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                                <td class="px-6 py-4 text-sm text-gray-800 dark:text-gray-200" x-text="returnItem.patientName"></td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="returnItem.medicineName"></td>
+                                <td class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-200" x-text="returnItem.quantity"></td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="returnItem.reason"></td>
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400" x-text="formatDate(returnItem.processedAt)"></td>
+                                <td class="px-6 py-4">
+                                    <span x-show="returnItem.isRestockable" class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-2 py-1 text-xs font-semibold rounded-full">Yes</span>
+                                    <span x-show="!returnItem.isRestockable" class="bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 px-2 py-1 text-xs font-semibold rounded-full">No</span>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="approvedReturns.length == 0">
+                            <td colspan="6" class="px-6 py-12 text-center text-gray-400 dark:text-gray-500">
+                                <span class="text-4xl">📭</span>
+                                <p class="mt-2">No approved returns</p>
+                            </td
+                            </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rejected Returns Tab -->
+    <div x-show="activeTab === 'rejected'">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Patient</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Medicine</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Quantity</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Reason</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Rejected Date</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                        <template x-for="returnItem in rejectedReturns" :key="returnItem.returnId">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                                <td class="px-6 py-4 text-sm text-gray-800 dark:text-gray-200" x-text="returnItem.patientName"></td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="returnItem.medicineName"></td>
+                                <td class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-200" x-text="returnItem.quantity"></td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="returnItem.reason"></td>
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400" x-text="formatDate(returnItem.processedAt)"></td>
+                            </tr>
+                        </template>
+                        <tr x-show="rejectedReturns.length == 0">
+                            <td colspan="5" class="px-6 py-12 text-center text-gray-400 dark:text-gray-500">
+                                <span class="text-4xl">📭</span>
+                                <p class="mt-2">No rejected returns</p>
+                            </td
+                            </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+    <script>
+    function drugReturnsApp() {
+        return {
+            activeTab: 'pending',
+            pendingReturns: [],
+            approvedReturns: [],
+            rejectedReturns: [],
+            loading: false,
+
+            init() {
+                this.loadReturns();
+            },
+
+            async loadReturns() {
+                this.loading = true;
+                try {
+                    const response = await fetch('/api/drugreturns?t=' + new Date().getTime());
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (result.success && Array.isArray(result.data)) {
+                        this.pendingReturns = result.data.filter(r => r.status === 'Pending');
+                        this.approvedReturns = result.data.filter(r => r.status === 'Approved');
+                        this.rejectedReturns = result.data.filter(r => r.status === 'Rejected');
+                    } else {
+                        console.warn('Unexpected API response format:', result);
+                    }
+                } catch (err) {
+                    console.error('Error loading returns:', err);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async approveReturn(id) {
+                if (!confirm('Approve this return? Stock will be added back if marked as restockable.')) return;
+                
+                try {
+                    const adminId = @Json.Serialize(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+                    
+                    const response = await fetch(`/api/drugreturns/${id}/approve?processedById=${adminId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    // Always read the body safely
+                    let result;
+                    try {
+                        result = await response.json();
+                    } catch (jsonErr) {
+                        console.warn('Response was not JSON:', jsonErr);
+                        result = { success: response.ok };
+                    }
+
+                    if (response.ok && result.success) {
+                        showToast('Return approved successfully', 'success');
+                        await this.loadReturns();
+                    } else {
+                        showToast(result.message || `Failed to approve return (HTTP ${response.status})`, 'error');
+                    }
+                } catch (err) {
+                    console.error('Error approving return:', err);
+                    showToast('An error occurred while approving', 'error');
+                }
+            },
+
+            async rejectReturn(id) {
+                if (!confirm('Reject this return?')) return;
+                
+                try {
+                    const adminId = @Json.Serialize(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+                    
+                    const response = await fetch(`/api/drugreturns/${id}/reject?processedById=${adminId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    let result;
+                    try {
+                        result = await response.json();
+                    } catch (jsonErr) {
+                        console.warn('Response was not JSON:', jsonErr);
+                        result = { success: response.ok };
+                    }
+
+                    if (response.ok && result.success) {
+                        showToast('Return rejected successfully', 'success');
+                        await this.loadReturns();
+                    } else {
+                        showToast(result.message || `Failed to reject return (HTTP ${response.status})`, 'error');
+                    }
+                } catch (err) {
+                    console.error('Error rejecting return:', err);
+                    showToast('An error occurred while rejecting', 'error');
+                }
+            },
+
+            formatDate(dateString) {
+                if (!dateString) return 'N/A';
+                const date = new Date(dateString);
+                return date.toLocaleDateString('en-ZA', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            }
+        }
+    }
+</script>
+}

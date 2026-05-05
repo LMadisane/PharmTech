@@ -7,9 +7,9 @@
     <div class="mb-6">
         <div class="flex items-center gap-3">
             <a asp-controller="UserManagement" asp-action="Index" class="text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition">
-                ← Back to Users
+                ←Back
             </a>
-            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">➕ Add New User</h1>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Add New User</h1>
         </div>
         <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Create Doctor, Pharmacist, or Patient accounts</p>
     </div>
@@ -93,7 +93,7 @@
                 <button type="submit"
                         x-bind:disabled="submitting || !form.name || !form.email || !form.role || (form.role !== 'Patient' && (!form.password || form.password.length < 6))"
                         class="flex-1 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-semibold px-6 py-3 rounded-xl transition duration-200">
-                    <span x-show="!submitting">✅ Create User</span>
+                    <span x-show="!submitting">Create User</span>
                     <span x-show="submitting" class="flex items-center justify-center gap-2">
                         <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

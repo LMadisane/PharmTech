@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PharmTech.Data;
 
@@ -11,9 +12,11 @@ using PharmTech.Data;
 namespace PharmTech.Migrations
 {
     [DbContext(typeof(PharmTechContext))]
-    partial class PharmTechContextModelSnapshot : ModelSnapshot
+    [Migration("20260505004834_AddFacilityIdToReceipts")]
+    partial class AddFacilityIdToReceipts
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

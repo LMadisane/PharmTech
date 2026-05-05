@@ -12,8 +12,35 @@
         </div>
         <a href="/UserManagement/CreateUser"
                class="bg-teal-600 hover:bg-teal-700 text-white font-semibold px-5 py-2.5 rounded-xl transition duration-200 text-sm flex items-center gap-2">
-            <span>➕</span> Add New User
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add New User
         </a>
+    </div>
+
+    <!-- Search Filter -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-6">
+        <div class="flex gap-3">
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Users</label>
+                <input type="text"
+                       x-model="searchTerm"
+                       @@input="filterUsers()"
+                       placeholder="Search by name, email, or role..."
+                       class="w-full px-4 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+            </div>
+            <div class="flex items-end">
+                <button @@click="clearSearch()"
+                        x-show="searchTerm"
+                        class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-xl text-sm transition">
+                    Clear
+                </button>
+            </div>
+        </div>
+        <p class="text-xs text-gray-400 mt-2" x-show="filteredUsers.length !== users.length">
+            Showing <span x-text="filteredUsers.length"></span> of <span x-text="users.length"></span> users
+        </p>
     </div>
 
     <!-- Users Table -->
@@ -31,7 +58,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                    <template x-for="user in users" :key="user.userId">
+                    <template x-for="user in filteredUsers" :key="user.userId">
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                             <td class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-200" x-text="user.name"></td>
                             <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="user.email"></td>
@@ -85,12 +112,12 @@
                             <p class="mt-2 text-gray-400 text-sm">Loading users...</p>
                         </td>
                     </tr>
-                    <tr x-show="!loading && users.length === 0">
+                    <tr x-show="!loading && filteredUsers.length === 0 && users.length > 0">
                         <td colspan="6" class="px-6 py-12 text-center">
                             <div class="text-gray-400">
-                                <span class="text-4xl">📭</span>
-                                <p class="mt-2">No users found</p>
-                                <p class="text-xs mt-1">Click "Add New User" to create one</p>
+                                <span class="text-4xl">🔍</span>
+                                <p class="mt-2">No users match your search</p>
+                                <p class="text-xs mt-1">Try a different search term</p>
                             </div>
                         </td>
                     </tr>
@@ -158,8 +185,10 @@
         function userManagementApp() {
             return {
                 users: [],
+                filteredUsers: [],
                 loading: false,
                 error: null,
+                searchTerm: '',
                 showResetModal: false,
                 selectedUserId: null,
                 selectedUserName: '',
@@ -176,25 +205,47 @@
                     try {
                         const response = await fetch('/api/usermanagement/users');
                         const result = await response.json();
-                        
+
                         if (result && result.success) {
                             this.users = result.users || [];
+                            this.filteredUsers = this.users;
                         } else {
                             this.error = result?.message || 'Failed to load users';
                             this.users = [];
+                            this.filteredUsers = [];
                         }
                     } catch (err) {
                         console.error('Error loading users:', err);
                         this.error = err.message;
                         this.users = [];
+                        this.filteredUsers = [];
                     } finally {
                         this.loading = false;
                     }
                 },
 
+                filterUsers() {
+                    if (!this.searchTerm) {
+                        this.filteredUsers = this.users;
+                        return;
+                    }
+
+                    const term = this.searchTerm.toLowerCase();
+                    this.filteredUsers = this.users.filter(user =>
+                        user.name.toLowerCase().includes(term) ||
+                        user.email.toLowerCase().includes(term) ||
+                        user.role.toLowerCase().includes(term)
+                    );
+                },
+
+                clearSearch() {
+                    this.searchTerm = '';
+                    this.filteredUsers = this.users;
+                },
+
                 async deactivateUser(id) {
                     if (!confirm('Are you sure you want to deactivate this user?')) return;
-                    
+
                     try {
                         const response = await fetch(`/api/usermanagement/users/${id}/deactivate`, {
                             method: 'PUT',
@@ -236,7 +287,7 @@
 
                 async deleteUser(id, name) {
                     if (!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) return;
-                    
+
                     try {
                         const response = await fetch(`/api/usermanagement/users/${id}`, {
                             method: 'DELETE',

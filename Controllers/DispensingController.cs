@@ -8,12 +8,12 @@ using System.Security.Claims;
 
 namespace PharmTech.Controllers
 {
-    public class DispensingViewController : Controller
+    public class DispensingController : Controller
     {
         private readonly PharmTechContext _context;
-        private readonly ILogger<DispensingViewController> _logger;
+        private readonly ILogger<DispensingController> _logger;
 
-        public DispensingViewController(PharmTechContext context, ILogger<DispensingViewController> logger)
+        public DispensingController(PharmTechContext context, ILogger<DispensingController> logger)
         {
             _context = context;
             _logger = logger;
@@ -35,13 +35,27 @@ namespace PharmTech.Controllers
         {
             try
             {
+                var pharmacistId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var pharmacist = await _context.Users.FindAsync(pharmacistId);
+
+                if (pharmacist == null || !pharmacist.FacilityId.HasValue)
+                    return BadRequest(new { success = false, message = "Pharmacist not assigned to any facility" });
+
                 var prescription = await _context.Prescriptions
                     .Include(p => p.Patient)
                     .Include(p => p.Medicine)
+                    .Include(p => p.Facility)
                     .FirstOrDefaultAsync(p => p.ReferenceCode == referenceCode);
 
                 if (prescription == null)
                     return NotFound(new { success = false, message = "Prescription not found" });
+
+                // Only allow dispensing of prescriptions from the pharmacist's facility
+                if (prescription.FacilityId != pharmacist.FacilityId.Value)
+                    return BadRequest(new { success = false, message = "This prescription is from a different facility. Cannot dispense." });
+
+                if (prescription.Status == "Dispensed")
+                    return BadRequest(new { success = false, message = "This prescription has already been dispensed" });
 
                 return Ok(new
                 {
@@ -86,6 +100,12 @@ namespace PharmTech.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(new { success = false, message = "Invalid request data" });
 
+                var pharmacistId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var pharmacist = await _context.Users.FindAsync(pharmacistId);
+
+                if (pharmacist == null || !pharmacist.FacilityId.HasValue)
+                    return BadRequest(new { success = false, message = "Pharmacist not assigned to any facility" });
+
                 var prescription = await _context.Prescriptions
                     .Include(p => p.Medicine)
                     .Include(p => p.Patient)
@@ -97,31 +117,35 @@ namespace PharmTech.Controllers
                 if (prescription.Status == "Dispensed")
                     return BadRequest(new { success = false, message = "This prescription has already been dispensed" });
 
+                if (prescription.FacilityId != pharmacist.FacilityId.Value)
+                    return BadRequest(new { success = false, message = "Cannot dispense prescriptions from other facilities" });
+
                 int requiredQty = prescription.DosagePerDay * prescription.DurationDays;
 
                 var inventory = await _context.InventoryItems
                     .FirstOrDefaultAsync(i =>
                         i.MedId == prescription.MedId &&
-                        i.FacilityId == request.FacilityId);
+                        i.FacilityId == pharmacist.FacilityId.Value);
 
                 if (inventory == null)
-                    return BadRequest(new { success = false, message = "Medicine not found in inventory at this facility" });
+                    return BadRequest(new { success = false, message = $"Medicine '{prescription.Medicine?.Name}' not found in inventory at your facility" });
 
                 if (inventory.Quantity < requiredQty)
                     return BadRequest(new
                     {
                         success = false,
-                        message = "Insufficient stock",
-                        available = inventory.Quantity,
-                        required = requiredQty
+                        message = $"Insufficient stock. Available: {inventory.Quantity}, Required: {requiredQty}"
                     });
 
                 var batches = await _context.MedicineBatches
                     .Where(b => b.MedId == prescription.MedId &&
-                                b.FacilityId == request.FacilityId &&
+                                b.FacilityId == pharmacist.FacilityId.Value &&
                                 b.Quantity > 0)
                     .OrderBy(b => b.ExpiryDate)
                     .ToListAsync();
+
+                if (!batches.Any())
+                    return BadRequest(new { success = false, message = "No available batches found for this medicine" });
 
                 int remainingToDeduct = requiredQty;
                 foreach (var batch in batches)
@@ -139,7 +163,7 @@ namespace PharmTech.Controllers
                 {
                     PrescriptionId = prescription.PrescriptionId,
                     DispensedById = request.DispensedById,
-                    FacilityId = request.FacilityId,
+                    FacilityId = pharmacist.FacilityId.Value,
                     QuantityDispensed = requiredQty,
                     DispensedAt = DateTime.Now
                 };
@@ -157,13 +181,12 @@ namespace PharmTech.Controllers
                     Quantity = requiredQty,
                     Notes = $"Prescription: {prescription.ReferenceCode}",
                     LinkedRecordId = prescription.PrescriptionId,
-                    GeneratedAt = DateTime.Now
+                    GeneratedAt = DateTime.Now,
+                    FacilityId = pharmacist.FacilityId.Value  // Add this line
                 };
 
                 _context.Receipts.Add(receipt);
                 await _context.SaveChangesAsync();
-
-                await CheckLowStockAndAlert(prescription.MedId, request.FacilityId, inventory.Quantity);
 
                 return Ok(new
                 {
@@ -189,8 +212,8 @@ namespace PharmTech.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error dispensing prescription {PrescriptionId}", request.PrescriptionId);
-                return StatusCode(500, new { success = false, message = "An error occurred while dispensing" });
+                _logger.LogError(ex, "Error dispensing prescription {PrescriptionId}: {Message}", request.PrescriptionId, ex.Message);
+                return StatusCode(500, new { success = false, message = $"Dispensing error: {ex.Message}" });
             }
         }
 
@@ -230,11 +253,21 @@ namespace PharmTech.Controllers
         {
             try
             {
-                var facilities = await _context.Facilities
-                    .Select(f => new { f.FacilityId, f.Name })
-                    .ToListAsync();
+                var pharmacistId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var pharmacist = await _context.Users.FindAsync(pharmacistId);
 
-                return Ok(new { success = true, data = facilities });
+                // Pharmacist can only see their own facility
+                if (pharmacist != null && pharmacist.FacilityId.HasValue)
+                {
+                    var facility = await _context.Facilities
+                        .Where(f => f.FacilityId == pharmacist.FacilityId.Value)
+                        .Select(f => new { f.FacilityId, f.Name })
+                        .FirstOrDefaultAsync();
+
+                    return Ok(new { success = true, data = facility });
+                }
+
+                return Ok(new { success = true, data = (object)null });
             }
             catch (Exception ex)
             {

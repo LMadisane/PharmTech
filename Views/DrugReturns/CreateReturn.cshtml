@@ -1,0 +1,172 @@
+﻿@{
+    ViewData["Title"] = "Create Return Request";
+}
+
+<div x-data="createReturnApp()" x-init="init()" class="max-w-2xl mx-auto">
+    <div class="mb-6">
+        <div class="flex items-center gap-3">
+            <a href="/DrugReturns/Index" class="text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition">
+                ←Back
+            </a>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">New Return Request</h1>
+        </div>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Record a patient's medication return</p>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        <form @@submit.prevent="submitReturn()">
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Medicine *</label>
+                <select x-model="form.medId" required
+                        class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+                    <option value="">Select medicine...</option>
+                    <template x-for="medicine in medicines" :key="medicine.medId">
+                        <option :value="medicine.medId" x-text="medicine.name + ' (' + (medicine.dosageForm || 'N/A') + ')'"></option>
+                    </template>
+                </select>
+            </div>
+
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Patient *</label>
+                <select x-model="form.patientId" required
+                        class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+                    <option value="">Select patient...</option>
+                    <template x-for="patient in patients" :key="patient.userId">
+                        <option :value="patient.userId" x-text="patient.name + ' (' + patient.email + ')'"></option>
+                    </template>
+                </select>
+            </div>
+
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Quantity *</label>
+                <input type="number" x-model="form.quantity" required min="1"
+                       class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+            </div>
+
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Reason for Return *</label>
+                <textarea x-model="form.reason" required rows="3"
+                          placeholder="e.g., Side effects, Expired, Doctor discontinued, etc."
+                          class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white"></textarea>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Restock</label>
+                <div class="flex items-center gap-4">
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="radio" x-model.boolean="form.isRestockable" :value="true" class="w-4 h-4 text-teal-600">
+                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Yes - Return to inventory</span>
+                    </label>
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="radio" x-model.boolean="form.isRestockable" :value="false" class="w-4 h-4 text-red-600">
+                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">No - Dispose of medication</span>
+                    </label>
+                </div>
+                <p class="text-xs text-gray-400 mt-1">⚠️ Select "Yes" only if the medication is unopened and not expired</p>
+            </div>
+
+            <div x-show="error" x-text="error" class="mb-4 text-sm text-red-600 bg-red-50 p-3 rounded-xl"></div>
+
+            <div class="flex gap-3">
+                <button type="submit" x-bind:disabled="submitting"
+                        class="flex-1 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-semibold py-3 rounded-xl transition">
+                    <span x-show="!submitting">Submit Return Request</span>
+                    <span x-show="submitting" class="flex items-center justify-center gap-2">
+                        <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        Submitting...
+                    </span>
+                </button>
+                <a href="/DrugReturns/Index" class="flex-1 border border-gray-300 text-center py-3 rounded-xl hover:bg-gray-50 transition">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function createReturnApp() {
+            return {
+                medicines: [],
+                patients: [],
+                submitting: false,
+                error: null,
+                form: {
+                    medId: '',
+                    patientId: '',
+                    quantity: '',
+                    reason: '',
+                    isRestockable: true
+                },
+
+                async init() {
+                    await this.loadMedicines();
+                    await this.loadPatients();
+                },
+
+                async loadMedicines() {
+                    try {
+                        const response = await fetch('/api/medicine');
+                        const result = await response.json();
+                        if (result.success) {
+                            this.medicines = result.medicines || [];
+                        }
+                    } catch (err) {
+                        console.error('Error loading medicines:', err);
+                    }
+                },
+
+                async loadPatients() {
+                    try {
+                        const response = await fetch('/api/prescription/patients');
+                        const result = await response.json();
+                        if (result.success) {
+                            this.patients = result.patients || [];
+                        }
+                    } catch (err) {
+                        console.error('Error loading patients:', err);
+                    }
+                },
+
+                async submitReturn() {
+                    this.submitting = true;
+                    this.error = null;
+
+                    try {
+                        const response = await fetch('/api/drugreturns', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                medId: parseInt(this.form.medId),
+                                patientId: parseInt(this.form.patientId),
+                                quantity: parseInt(this.form.quantity),
+                                reason: this.form.reason.trim(),
+                                isRestockable: this.form.isRestockable === true,
+                                facilityId: 0
+                            })
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok && result.success) {
+                            window.location.href = '/DrugReturns/Index';
+                        } else {
+                            this.error = result.message || 'Failed to submit return';
+                            showToast(this.error, 'error');
+                        }
+                    } catch (err) {
+                        console.error('Error:', err);
+                        this.error = 'An error occurred while submitting';
+                        showToast(this.error, 'error');
+                    } finally {
+                        this.submitting = false;
+                    }
+                }
+            }
+        }
+    </script>
+}

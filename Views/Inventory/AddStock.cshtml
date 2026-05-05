@@ -1,0 +1,253 @@
+﻿@{
+    ViewData["Title"] = "Add Stock";
+}
+
+<!--
+    Add Stock Page - Pharmacists use this to add new medicine batches to inventory
+    Each batch has a lot number, quantity, and expiry date for FIFO tracking
+-->
+
+<div x-data="addStockApp()" x-init="init()" class="max-w-2xl mx-auto">
+    
+    <!-- Header Section -->
+    <div class="mb-6">
+        <div class="flex items-center gap-3">
+            <!-- Back to Inventory link -->
+            <a href="/Inventory" class="text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition">
+                ←Back
+            </a>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Add Stock</h1>
+        </div>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Add a new batch of medicine to inventory</p>
+    </div>
+
+    <!-- Form Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        
+        <form @@submit.prevent="submitBatch()">
+            
+            <!-- Medicine Selection Dropdown -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Medicine *</label>
+                <select x-model="form.medicineId" required
+                        class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+                    <option value="">Select medicine...</option>
+                    <template x-for="medicine in medicines" :key="medicine.medId">
+                        <option :value="medicine.medId" x-text="medicine.name + ' (' + (medicine.dosageForm || 'N/A') + ')'"></option>
+                    </template>
+                </select>
+                <p class="text-xs text-gray-400 mt-1">Select which medicine you're adding stock for</p>
+            </div>
+
+            <!-- Facility (Auto-assigned from logged-in user - read only) -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Facility</label>
+                <input type="text"
+                       x-model="facilityName"
+                       disabled
+                       class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed">
+                <input type="hidden" x-model="form.facilityId">
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Stock will be added to your assigned facility</p>
+            </div>
+
+            <!-- Lot Number Input -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Lot Number *</label>
+                <input type="text"
+                       x-model="form.lotNumber"
+                       required
+                       placeholder="e.g., BATCH-2024-001"
+                       class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+                <p class="text-xs text-gray-400 mt-1">Unique identifier for this shipment (from manufacturer/supplier)</p>
+            </div>
+
+            <!-- Quantity Input -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Quantity *</label>
+                <input type="number"
+                       x-model="form.quantity"
+                       required
+                       min="1"
+                       placeholder="Number of units"
+                       class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+                <p class="text-xs text-gray-400 mt-1">Total number of tablets/capsules/bottles in this batch</p>
+            </div>
+
+            <!-- Expiry Date Picker -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Expiry Date *</label>
+                <input type="date"
+                       x-model="form.expiryDate"
+                       required
+                       class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+                <p class="text-xs text-gray-400 mt-1">When this batch expires - older batches are dispensed first (FIFO)</p>
+            </div>
+
+            <!-- Error Message Display -->
+            <div x-show="error" x-text="error" class="mb-4 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 p-3 rounded-xl"></div>
+
+            <!-- Form Action Buttons -->
+            <div class="flex gap-3">
+                <!-- Submit Button -->
+                <button type="submit"
+                        :disabled="submitting"
+                        class="flex-1 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-semibold py-3 rounded-xl transition">
+                    <span x-show="!submitting">Add Stock</span>
+                    <span x-show="submitting" class="flex items-center justify-center gap-2">
+                        <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        Adding...
+                    </span>
+                </button>
+                
+                <!-- Cancel Button -->
+                <a href="/Inventory"
+                       class="flex-1 border border-gray-300 dark:border-gray-600 text-center py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                    Cancel
+                </a>
+            </div>
+            
+        </form>
+    </div>
+
+    <!-- Success Modal - Shows after successful stock addition -->
+    <div x-show="showSuccess"
+         x-cloak
+         x-transition.opacity.duration.300ms
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        @@click.away="showSuccess = false">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-6" @@click.stop>
+            <div class="text-center">
+                <!-- Success Icon -->
+                <div class="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="text-3xl">✅</span>
+                </div>
+                
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-2">Stock Added!</h3>
+                <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">The batch has been added to inventory successfully.</p>
+                
+                <!-- Success Modal Buttons -->
+                <div class="flex gap-3">
+                    <button @@click="resetForm()"
+                        class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 rounded-xl transition">
+                        Add Another Batch
+                    </button>
+                    <a href="/Inventory"
+                           class="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 py-2 rounded-xl text-center transition">
+                        View Inventory
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <style>
+        /* x-cloak prevents flashing of unstyled content before Alpine.js loads */
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+    
+    <script>
+        //Add Stock Application with Alpine.js
+                function addStockApp() {
+            return {
+                medicines: [],
+                facilities: [],
+                facilityName: '',
+                submitting: false,
+                showSuccess: false,
+                error: null,
+                form: {
+                    medicineId: '',
+                    facilityId: '',
+                    lotNumber: '',
+                    quantity: '',
+                    expiryDate: ''
+                },
+
+                async init() {
+                    await this.loadMedicines();
+                    await this.loadPharmacistFacility();
+                },
+
+                async loadMedicines() {
+                    try {
+                        const response = await fetch('/api/inventory/medicines');
+                        const result = await response.json();
+                        if (result.success) this.medicines = result.medicines || [];
+                    } catch (err) { console.error(err); }
+                },
+
+                async loadPharmacistFacility() {
+                    try {
+                        // Get current user's facility
+                        const response = await fetch('/api/users/current');
+                        const result = await response.json();
+                        if (result.success && result.facility) {
+                            this.facilityName = result.facility.name;
+                            this.form.facilityId = result.facility.facilityId;
+                        } else {
+                            this.error = 'No facility assigned to your account. Please contact admin.';
+                        }
+                    } catch (err) {
+                        console.error('Error loading facility:', err);
+                        this.error = 'Unable to load your facility information';
+                    }
+                },
+
+                async submitBatch() {
+                    if (!this.form.facilityId) {
+                        this.error = 'No facility assigned to your account';
+                        return;
+                    }
+
+                    this.submitting = true;
+                    this.error = null;
+                    try {
+                        const response = await fetch('/api/inventory/batch', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                medicineId: parseInt(this.form.medicineId),
+                                facilityId: parseInt(this.form.facilityId),
+                                lotNumber: this.form.lotNumber,
+                                quantity: parseInt(this.form.quantity),
+                                expiryDate: this.form.expiryDate
+                            })
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            this.showSuccess = true;
+                            showToast('Stock added successfully!', 'success');
+                        } else {
+                            this.error = result.message;
+                            showToast(this.error, 'error');
+                        }
+                    } catch (err) {
+                        this.error = 'An error occurred';
+                        showToast(this.error, 'error');
+                    } finally {
+                        this.submitting = false;
+                    }
+                },
+
+                resetForm() {
+                    this.showSuccess = false;
+                    this.form = {
+                        medicineId: '',
+                        facilityId: this.form.facilityId, // Preserve facility ID
+                        lotNumber: '',
+                        quantity: '',
+                        expiryDate: ''
+                    };
+                    this.error = null;
+                }
+            }
+        }
+    </script>
+}

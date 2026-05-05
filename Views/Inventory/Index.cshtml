@@ -1,0 +1,392 @@
+﻿@{
+    ViewData["Title"] = "Inventory";
+    var isPharmacist = User.IsInRole("Pharmacist");
+}
+
+<div x-data="inventoryApp()" x-init="init()" class="max-w-7xl mx-auto">
+
+    <!-- Header -->
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">📦 Inventory Management</h1>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">View stock levels and batches across all facilities</p>
+        </div>
+        @if (isPharmacist)
+        {
+            <a href="/Inventory/AddStock"
+                   class="bg-teal-600 hover:bg-teal-700 text-white font-semibold px-5 py-2.5 rounded-xl transition duration-200 text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Add New Stock
+            </a>
+        }
+    </div>
+
+    <!-- Tabs -->
+    <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
+        <ul class="flex flex-wrap -mb-px text-sm font-medium text-center">
+            <li class="mr-2">
+                <button @@click="activeTab = 'summary'"
+                    :class="activeTab === 'summary' ? 'border-teal-600 text-teal-600 dark:border-teal-400 dark:text-teal-400' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-400'"
+                    class="inline-block p-4 border-b-2 rounded-t-lg transition">
+                    📊 Stock Summary
+                </button>
+            </li>
+            <li class="mr-2">
+                <button @@click="activeTab = 'batches'"
+                    :class="activeTab === 'batches' ? 'border-teal-600 text-teal-600 dark:border-teal-400 dark:text-teal-400' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-400'"
+                    class="inline-block p-4 border-b-2 rounded-t-lg transition">
+                    📋 All Batches
+                </button>
+            </li>
+            <li class="mr-2">
+                <button @@click="activeTab = 'expiring'"
+                    :class="activeTab === 'expiring' ? 'border-teal-600 text-teal-600 dark:border-teal-400 dark:text-teal-400' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-400'"
+                    class="inline-block p-4 border-b-2 rounded-t-lg transition">
+                    ⚠️ Expiring Soon
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Stock Summary Tab -->
+    <div x-show="activeTab === 'summary'">
+
+        <!-- Filters -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter by Facility</label>
+                    <select x-model="summaryFilters.facilityId" @@change="loadInventory()"
+                            class="w-full px-4 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+                        <option value="">All Facilities</option>
+                        <template x-for="facility in facilities" :key="facility.facilityId">
+                            <option :value="facility.facilityId" x-text="facility.name"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Medicine</label>
+                    <input type="text"
+                           x-model="summaryFilters.search"
+                    @@input="filterInventory()"
+                           placeholder="Search by medicine name..."
+                           class="w-full px-4 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Table -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Medicine</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Facility</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Stock</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Buffer</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                        <template x-for="item in filteredInventory" :key="item.inventoryId">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                                <td class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-200" x-text="item.medicineName"></td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="item.facilityName"></td>
+                                <td class="px-6 py-4 text-sm font-semibold"
+                                    :class="item.quantity <= item.bufferQty ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-200'"
+                                    x-text="item.quantity"></td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="item.bufferQty"></td>
+                                <td class="px-6 py-4">
+                                    <span x-show="item.hasExpiredStock"
+                                          class="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-2 py-1 text-xs font-semibold rounded-full">
+                                        Has Expired Stock
+                                    </span>
+                                    <span x-show="!item.hasExpiredStock && item.quantity <= item.bufferQty"
+                                          class="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-2 py-1 text-xs font-semibold rounded-full">
+                                        Low Stock
+                                    </span>
+                                    <span x-show="!item.hasExpiredStock && item.quantity > item.bufferQty"
+                                          class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-2 py-1 text-xs font-semibold rounded-full">
+                                        OK
+                                    </span>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="loading">
+                            <td colspan="5" class="px-6 py-12 text-center">
+                                <div class="flex justify-center">
+                                    <svg class="animate-spin h-8 w-8 text-teal-500" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                    </svg>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr x-show="!loading && filteredInventory.length === 0">
+                            <td colspan="5" class="px-6 py-12 text-center text-gray-400 dark:text-gray-500">
+                                <span class="text-4xl">📭</span>
+                                <p class="mt-2">No stock found</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- All Batches Tab -->
+    <div x-show="activeTab === 'batches'">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Lot Number</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Medicine</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Facility</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Quantity</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Expiry Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                        <template x-for="batch in batches" :key="batch.batchId">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                                <td class="px-6 py-4 text-sm font-mono text-gray-800 dark:text-gray-200" x-text="batch.lotNumber"></td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="batch.medicineName"></td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="batch.facilityName"></td>
+                                <td class="px-6 py-4 text-sm font-semibold text-gray-800 dark:text-gray-200" x-text="batch.quantity"></td>
+                                <td class="px-6 py-4 text-sm"
+                                    :class="batch.daysUntilExpiry < 0 ? 'text-red-600 dark:text-red-400 font-semibold' : (batch.daysUntilExpiry <= 90 ? 'text-yellow-600 dark:text-yellow-400 font-semibold' : 'text-gray-600 dark:text-gray-400')"
+                                    x-text="formatDate(batch.expiryDate)"></td>
+                                <td class="px-6 py-4">
+                                    <span x-show="batch.daysUntilExpiry < 0"
+                                          class="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-2 py-1 text-xs font-semibold rounded-full">
+                                        Expired
+                                    </span>
+                                    <span x-show="batch.daysUntilExpiry >= 0 && batch.daysUntilExpiry <= 30"
+                                          class="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-2 py-1 text-xs font-semibold rounded-full">
+                                        Expiring Soon
+                                    </span>
+                                    <span x-show="batch.daysUntilExpiry > 30 && batch.daysUntilExpiry <= 90"
+                                          class="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-2 py-1 text-xs font-semibold rounded-full">
+                                        Expiring
+                                    </span>
+                                    <span x-show="batch.daysUntilExpiry > 90"
+                                          class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-2 py-1 text-xs font-semibold rounded-full">
+                                        Good
+                                    </span>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="loadingBatches">
+                            <td colspan="6" class="px-6 py-12 text-center">
+                                <div class="flex justify-center">
+                                    <svg class="animate-spin h-8 w-8 text-teal-500" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                    </svg>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr x-show="!loadingBatches && batches.length === 0">
+                            <td colspan="6" class="px-6 py-12 text-center text-gray-400 dark:text-gray-500">
+                                <span class="text-4xl">📭</span>
+                                <p class="mt-2">No batches found</p>
+                                <p class="text-xs mt-1">Click "Add New Stock" to add a batch</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expiring Soon Tab -->
+    <div x-show="activeTab === 'expiring'">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Lot Number</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Medicine</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Facility</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Quantity</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Expiry Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300">Days Left</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                        <template x-for="batch in expiringBatches" :key="batch.batchId">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                                <td class="px-6 py-4 text-sm font-mono text-gray-800 dark:text-gray-200" x-text="batch.lotNumber"></td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="batch.medicineName"></td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="batch.facilityName"></td>
+                                <td class="px-6 py-4 text-sm font-semibold text-gray-800 dark:text-gray-200" x-text="batch.quantity"></td>
+                                <td class="px-6 py-4 text-sm"
+                                    :class="batch.daysUntilExpiry < 0 ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-yellow-600 dark:text-yellow-400'"
+                                    x-text="formatDate(batch.expiryDate)"></td>
+                                <td class="px-6 py-4 text-sm font-semibold"
+                                    :class="batch.daysUntilExpiry < 0 ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'"
+                                    x-text="batch.daysUntilExpiry < 0 ? 'Expired' : batch.daysUntilExpiry + ' days'"></td>
+                            </tr>
+                        </template>
+                        <tr x-show="loadingExpiring">
+                            <td colspan="6" class="px-6 py-12 text-center">
+                                <div class="flex justify-center">
+                                    <svg class="animate-spin h-8 w-8 text-teal-500" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                    </svg>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr x-show="!loadingExpiring && expiringBatches.length === 0">
+                            <td colspan="6" class="px-6 py-12 text-center text-gray-400 dark:text-gray-500">
+                                <span class="text-4xl">✅</span>
+                                <p class="mt-2">No expiring or expired batches</p>
+                                <p class="text-xs mt-1">All batches have more than 90 days until expiry</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    <script>
+        function inventoryApp() {
+            return {
+                activeTab: 'summary',
+                loading: false,
+                loadingBatches: false,
+                loadingExpiring: false,
+                inventory: [],
+                filteredInventory: [],
+                batches: [],
+                expiringBatches: [],
+                facilities: [],
+                summaryFilters: {
+                    facilityId: '',
+                    search: ''
+                },
+
+                async init() {
+                    await this.loadFacilities();
+                    await this.loadInventory();
+                    await this.loadBatches();
+                    await this.loadExpiringBatches();
+                },
+
+                async loadFacilities() {
+                    try {
+                        const response = await fetch('/api/inventory/facilities');
+                        const result = await response.json();
+                        if (result.success) {
+                            this.facilities = result.facilities || [];
+                        }
+                    } catch (err) {
+                        console.error('Error loading facilities:', err);
+                    }
+                },
+
+                async loadInventory() {
+                    this.loading = true;
+                    try {
+                        let url = '/api/inventory';
+                        if (this.summaryFilters.facilityId) {
+                            url += `?facilityId=${this.summaryFilters.facilityId}`;
+                        }
+                        const response = await fetch(url);
+                        const result = await response.json();
+
+                        if (result.success) {
+                            // Check for expired batches per medicine to flag "Has Expired Stock"
+                            const batchResponse = await fetch('/api/inventory/batches');
+                            const batchResult = await batchResponse.json();
+                            const expiredMedicineIds = new Set();
+
+                            if (batchResult.success && batchResult.batches) {
+                                batchResult.batches.forEach(batch => {
+                                    if (batch.daysUntilExpiry < 0) {
+                                        expiredMedicineIds.add(batch.medicineId);
+                                    }
+                                });
+                            }
+
+                            this.inventory = (result.inventory || []).map(item => ({
+                                ...item,
+                                hasExpiredStock: expiredMedicineIds.has(item.medicineId)
+                            }));
+                            this.filterInventory();
+                        }
+                    } catch (err) {
+                        console.error('Error loading inventory:', err);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                filterInventory() {
+                    if (!this.summaryFilters.search) {
+                        this.filteredInventory = this.inventory;
+                        return;
+                    }
+                    const term = this.summaryFilters.search.toLowerCase();
+                    this.filteredInventory = this.inventory.filter(item =>
+                        item.medicineName.toLowerCase().includes(term)
+                    );
+                },
+
+                async loadBatches() {
+                    this.loadingBatches = true;
+                    try {
+                        const response = await fetch('/api/inventory/batches');
+                        const result = await response.json();
+                        if (result.success) {
+                            this.batches = result.batches || [];
+                        } else {
+                            this.batches = [];
+                        }
+                    } catch (err) {
+                        console.error('Error loading batches:', err);
+                        this.batches = [];
+                    } finally {
+                        this.loadingBatches = false;
+                    }
+                },
+
+                async loadExpiringBatches() {
+                    this.loadingExpiring = true;
+                    try {
+                        const response = await fetch('/api/inventory/batches/expiring?days=90');
+                        const result = await response.json();
+                        if (result.success) {
+                            this.expiringBatches = result.expiringBatches || [];
+                        } else {
+                            this.expiringBatches = [];
+                        }
+                    } catch (err) {
+                        console.error('Error loading expiring batches:', err);
+                        this.expiringBatches = [];
+                    } finally {
+                        this.loadingExpiring = false;
+                    }
+                },
+
+                formatDate(dateString) {
+                    if (!dateString) return 'N/A';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('en-ZA');
+                }
+            }
+        }
+    </script>
+}

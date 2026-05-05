@@ -9,12 +9,12 @@ using System.Security.Claims;
 namespace PharmTech.Controllers
 {
     [Authorize(Roles = "Admin,Doctor,Pharmacist")]
-    public class PrescriptionViewController : Controller
+    public class PrescriptionController : Controller
     {
         private readonly PharmTechContext _context;
-        private readonly ILogger<PrescriptionViewController> _logger;
+        private readonly ILogger<PrescriptionController> _logger;
 
-        public PrescriptionViewController(PharmTechContext context, ILogger<PrescriptionViewController> logger)
+        public PrescriptionController(PharmTechContext context, ILogger<PrescriptionController> logger)
         {
             _context = context;
             _logger = logger;
@@ -43,7 +43,6 @@ namespace PharmTech.Controllers
 
         // ==================== API ENDPOINTS ====================
 
-        // GET: api/prescription
         [HttpGet("api/prescription")]
         public async Task<IActionResult> GetPrescriptions(
             [FromQuery] string? status,
@@ -54,10 +53,18 @@ namespace PharmTech.Controllers
         {
             try
             {
+                var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var user = await _context.Users.FindAsync(userId);
+
                 var query = _context.Prescriptions
                     .Include(p => p.Patient)
                     .Include(p => p.Medicine)
+                    .Include(p => p.Facility)
                     .AsQueryable();
+
+                if (userRole != "Admin" && user != null && user.FacilityId.HasValue)
+                    query = query.Where(p => p.FacilityId == user.FacilityId.Value);
 
                 if (!string.IsNullOrEmpty(status))
                     query = query.Where(p => p.Status == status);
@@ -86,7 +93,8 @@ namespace PharmTech.Controllers
                         p.DurationDays,
                         totalQuantity = p.DosagePerDay * p.DurationDays,
                         patient = new { p.Patient.UserId, p.Patient.Name, p.Patient.Email },
-                        medicine = new { p.Medicine.MedId, p.Medicine.Name, p.Medicine.DosageForm }
+                        medicine = new { p.Medicine.MedId, p.Medicine.Name, p.Medicine.DosageForm },
+                        facility = new { p.Facility.FacilityId, p.Facility.Name }
                     })
                     .ToListAsync();
 
@@ -99,19 +107,29 @@ namespace PharmTech.Controllers
             }
         }
 
-        // GET: api/prescription/{id}
         [HttpGet("api/prescription/{id}")]
         public async Task<IActionResult> GetPrescription(int id)
         {
             try
             {
+                var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var user = await _context.Users.FindAsync(userId);
+
                 var prescription = await _context.Prescriptions
                     .Include(p => p.Patient)
                     .Include(p => p.Medicine)
+                    .Include(p => p.Facility)
                     .FirstOrDefaultAsync(p => p.PrescriptionId == id);
 
                 if (prescription == null)
                     return Ok(new { success = false, message = "Prescription not found" });
+
+                if (userRole != "Admin" && user != null && user.FacilityId.HasValue)
+                {
+                    if (prescription.FacilityId != user.FacilityId.Value)
+                        return Ok(new { success = false, message = "You don't have access to this prescription" });
+                }
 
                 return Ok(new
                 {
@@ -137,6 +155,11 @@ namespace PharmTech.Controllers
                             prescription.Medicine.Name,
                             prescription.Medicine.DosageForm,
                             prescription.Medicine.BufferQty
+                        },
+                        facility = new
+                        {
+                            prescription.Facility.FacilityId,
+                            prescription.Facility.Name
                         }
                     }
                 });
@@ -148,7 +171,6 @@ namespace PharmTech.Controllers
             }
         }
 
-        // POST: api/prescription
         [HttpPost("api/prescription")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> CreatePrescription([FromBody] PrescriptionRequest request)
@@ -156,21 +178,48 @@ namespace PharmTech.Controllers
             try
             {
                 if (!ModelState.IsValid)
-                    return BadRequest(new { success = false, message = "Invalid request data" });
+                {
+                    var errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToList();
+                    return BadRequest(new { success = false, message = string.Join(", ", errors) });
+                }
 
+                // Get the logged in doctor
+                var doctorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var doctor = await _context.Users.FindAsync(doctorId);
+
+                if (doctor == null)
+                    return BadRequest(new { success = false, message = "Doctor account not found" });
+
+                if (!doctor.FacilityId.HasValue)
+                    return BadRequest(new { success = false, message = "You are not assigned to any facility. Contact your administrator." });
+
+                // Patients are just Users referenced by ID — no role filter needed
+                // since patients don't log into the system directly
                 var patient = await _context.Users
-                    .FirstOrDefaultAsync(u => u.UserId == request.PatientId && u.Role == "Patient");
+                    .FirstOrDefaultAsync(u => u.UserId == request.PatientId);
 
                 if (patient == null)
-                    return BadRequest(new { success = false, message = "Patient not found" });
+                    return BadRequest(new { success = false, message = $"Patient with ID {request.PatientId} not found" });
 
+                // Verify medicine exists
                 var medicine = await _context.Medicines
                     .FirstOrDefaultAsync(m => m.MedId == request.MedId);
 
                 if (medicine == null)
-                    return BadRequest(new { success = false, message = "Medicine not found" });
+                    return BadRequest(new { success = false, message = $"Medicine with ID {request.MedId} not found" });
 
-                var referenceCode = $"RX-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 6).ToUpper()}";
+                // Verify facility exists
+                var facility = await _context.Facilities
+                    .FirstOrDefaultAsync(f => f.FacilityId == doctor.FacilityId.Value);
+
+                if (facility == null)
+                    return BadRequest(new { success = false, message = "Your assigned facility was not found in the system" });
+
+                // Generate unique reference code
+                var referenceCode = $"RX-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
 
                 var prescription = new Prescription
                 {
@@ -180,11 +229,16 @@ namespace PharmTech.Controllers
                     DurationDays = request.DurationDays,
                     ReferenceCode = referenceCode,
                     Status = "Pending",
-                    PrescribedAt = DateTime.Now
+                    PrescribedAt = DateTime.Now,
+                    FacilityId = doctor.FacilityId.Value
                 };
 
                 _context.Prescriptions.Add(prescription);
                 await _context.SaveChangesAsync();
+
+                _logger.LogInformation(
+                    "Prescription {ReferenceCode} created by Doctor {DoctorId} for Patient {PatientId}",
+                    referenceCode, doctorId, request.PatientId);
 
                 return Ok(new
                 {
@@ -198,72 +252,36 @@ namespace PharmTech.Controllers
                         prescription.PrescribedAt,
                         prescription.DosagePerDay,
                         prescription.DurationDays,
-                        totalQuantity = prescription.DosagePerDay * prescription.DurationDays
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating prescription");
-                return StatusCode(500, new { success = false, message = "An error occurred while creating prescription" });
-            }
-        }
-
-        // GET: api/prescription/search/{referenceCode}
-        [HttpGet("api/prescription/search/{referenceCode}")]
-        public async Task<IActionResult> SearchByReference(string referenceCode)
-        {
-            try
-            {
-                var prescription = await _context.Prescriptions
-                    .Include(p => p.Patient)
-                    .Include(p => p.Medicine)
-                    .FirstOrDefaultAsync(p => p.ReferenceCode == referenceCode);
-
-                if (prescription == null)
-                    return Ok(new { success = false, message = "Prescription not found" });
-
-                return Ok(new
-                {
-                    success = true,
-                    prescription = new
-                    {
-                        prescription.PrescriptionId,
-                        prescription.ReferenceCode,
-                        prescription.Status,
-                        prescription.PrescribedAt,
-                        prescription.DosagePerDay,
-                        prescription.DurationDays,
                         totalQuantity = prescription.DosagePerDay * prescription.DurationDays,
-                        patient = new
-                        {
-                            prescription.Patient.UserId,
-                            prescription.Patient.Name,
-                            prescription.Patient.Email
-                        },
-                        medicine = new
-                        {
-                            prescription.Medicine.MedId,
-                            prescription.Medicine.Name,
-                            prescription.Medicine.DosageForm
-                        }
+                        patientName = patient.Name,
+                        medicineName = medicine.Name,
+                        facilityName = facility.Name
                     }
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error searching prescription {ReferenceCode}", referenceCode);
-                return Ok(new { success = false, message = "An error occurred" });
+                // Log the full exception including inner exception for debugging
+                _logger.LogError(ex, "Error creating prescription: {Message} | Inner: {Inner}",
+                    ex.Message, ex.InnerException?.Message);
+
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = $"An error occurred while creating prescription: {ex.Message}",
+                    detail = ex.InnerException?.Message
+                });
             }
         }
 
         // GET: api/prescription/patients
         [HttpGet("api/prescription/patients")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,Pharmacist")]  // Allow both Doctors and Pharmacists
         public async Task<IActionResult> GetPatients()
         {
             try
             {
+                // Patients are GLOBAL - all facilities can see all patients
                 var patients = await _context.Users
                     .Where(u => u.Role == "Patient" && u.IsActive)
                     .Select(u => new { u.UserId, u.Name, u.Email })
@@ -278,7 +296,28 @@ namespace PharmTech.Controllers
             }
         }
 
-        // GET: api/prescription/medicines
+        [HttpPost("api/prescription/test")]
+        public async Task<IActionResult> TestCreate()
+        {
+            try
+            {
+                var doctorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var doctor = await _context.Users.FindAsync(doctorId);
+
+                return Ok(new
+                {
+                    doctorId = doctorId,
+                    doctorExists = doctor != null,
+                    doctorFacilityId = doctor?.FacilityId,
+                    doctorName = doctor?.Name
+                });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new { error = ex.Message });
+            }
+        }
+
         [HttpGet("api/prescription/medicines")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetMedicines()
@@ -287,6 +326,7 @@ namespace PharmTech.Controllers
             {
                 var medicines = await _context.Medicines
                     .Select(m => new { m.MedId, m.Name, m.DosageForm, m.BufferQty })
+                    .OrderBy(m => m.Name)
                     .ToListAsync();
 
                 return Ok(new { success = true, medicines });
@@ -298,18 +338,23 @@ namespace PharmTech.Controllers
             }
         }
 
-        // PUT: api/prescription/{id}/cancel
         [HttpPut("api/prescription/{id}/cancel")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> CancelPrescription(int id)
         {
             try
             {
+                var doctorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var doctor = await _context.Users.FindAsync(doctorId);
+
                 var prescription = await _context.Prescriptions
                     .FirstOrDefaultAsync(p => p.PrescriptionId == id);
 
                 if (prescription == null)
                     return NotFound(new { success = false, message = "Prescription not found" });
+
+                if (doctor != null && doctor.FacilityId.HasValue && prescription.FacilityId != doctor.FacilityId.Value)
+                    return BadRequest(new { success = false, message = "You cannot cancel prescriptions from other facilities" });
 
                 if (prescription.Status == "Dispensed")
                     return BadRequest(new { success = false, message = "Cannot cancel a dispensed prescription" });

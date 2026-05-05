@@ -2,32 +2,53 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
+using System.Security.Claims;
 
 namespace PharmTech.Controllers
 {
+    [Authorize(Roles = "Admin,Pharmacist")]
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin,Pharmacist")] // Alerts are relevant to Admin and Pharmacist
-    public class NotificationsController(PharmTechContext context) : ControllerBase
+    public class NotificationsController : ControllerBase
     {
-        private readonly PharmTechContext _context = context;
+        private readonly PharmTechContext _context;
+        private readonly ILogger<NotificationsController> _logger;
 
-        // Get all unread alerts - used by notification bell in layout
+        public NotificationsController(PharmTechContext context, ILogger<NotificationsController> logger)
+        {
+            _context = context;
+            _logger = logger;
+        }
+
+        /// <summary>
+        /// Get unread system alerts (filtered by user's facility for non-admins)
+        /// </summary>
         [HttpGet("unread")]
         public async Task<IActionResult> GetUnreadAlerts()
         {
-            var alerts = await _context.SystemAlerts
+            var userId = GetCurrentUserId();
+            var user = await _context.Users.FindAsync(userId);
+            var isAdmin = User.IsInRole("Admin");
+
+            var query = _context.SystemAlerts
                 .Include(a => a.Medicine)
                 .Include(a => a.Facility)
-                .Where(a => !a.IsRead)
+                .Where(a => !a.IsRead);
+
+            if (!isAdmin && user?.FacilityId.HasValue == true)
+            {
+                query = query.Where(a => a.FacilityId == user.FacilityId.Value);
+            }
+
+            var alerts = await query
                 .OrderByDescending(a => a.CreatedAt)
                 .Select(a => new
                 {
                     a.AlertId,
                     a.AlertType,
                     a.Message,
-                    medicine = a.Medicine != null ? a.Medicine.Name : null,
-                    facility = a.Facility != null ? a.Facility.Name : null,
+                    MedicineName = a.Medicine != null ? a.Medicine.Name : null,
+                    FacilityName = a.Facility != null ? a.Facility.Name : null,
                     a.CreatedAt
                 })
                 .ToListAsync();
@@ -35,22 +56,34 @@ namespace PharmTech.Controllers
             return Ok(alerts);
         }
 
-        // Get low stock alerts specifically - used by notifications.js
+        /// <summary>
+        /// Get only low stock alerts
+        /// </summary>
         [HttpGet("lowstock")]
         public async Task<IActionResult> GetLowStockAlerts()
         {
-            var alerts = await _context.SystemAlerts
+            var userId = GetCurrentUserId();
+            var user = await _context.Users.FindAsync(userId);
+            var isAdmin = User.IsInRole("Admin");
+
+            var query = _context.SystemAlerts
                 .Include(a => a.Medicine)
                 .Include(a => a.Facility)
-                .Where(a => a.AlertType == "LowStock" && !a.IsRead)
+                .Where(a => a.AlertType == "LowStock" && !a.IsRead);
+
+            if (!isAdmin && user?.FacilityId.HasValue == true)
+            {
+                query = query.Where(a => a.FacilityId == user.FacilityId.Value);
+            }
+
+            var alerts = await query
                 .OrderByDescending(a => a.CreatedAt)
                 .Select(a => new
                 {
                     a.AlertId,
-                    medicine = a.Medicine != null ? a.Medicine.Name : "Unknown",
-                    facility = a.Facility != null ? a.Facility.Name : "Unknown",
+                    MedicineName = a.Medicine != null ? a.Medicine.Name : "Unknown",
+                    FacilityName = a.Facility != null ? a.Facility.Name : "Unknown",
                     a.Message,
-                    quantity = a.Medicine != null ? (int?)a.Medicine.BufferQty : null,
                     a.CreatedAt
                 })
                 .ToListAsync();
@@ -58,14 +91,14 @@ namespace PharmTech.Controllers
             return Ok(alerts);
         }
 
-        // Mark a single alert as read
+        /// <summary>
+        /// Mark a single alert as read
+        /// </summary>
         [HttpPut("{id}/read")]
         public async Task<IActionResult> MarkAsRead(int id)
         {
             var alert = await _context.SystemAlerts.FindAsync(id);
-
-            if (alert == null)
-                return NotFound();
+            if (alert == null) return NotFound();
 
             alert.IsRead = true;
             await _context.SaveChangesAsync();
@@ -73,18 +106,37 @@ namespace PharmTech.Controllers
             return Ok(new { message = "Alert marked as read" });
         }
 
-        // Mark all alerts as read
+        /// <summary>
+        /// Mark all (visible) alerts as read for the current user/facility
+        /// </summary>
         [HttpPut("read/all")]
         public async Task<IActionResult> MarkAllAsRead()
         {
-            var unread = await _context.SystemAlerts
-                .Where(a => !a.IsRead)
-                .ToListAsync();
+            var userId = GetCurrentUserId();
+            var user = await _context.Users.FindAsync(userId);
+            var isAdmin = User.IsInRole("Admin");
 
-            unread.ForEach(a => a.IsRead = true);
+            var query = _context.SystemAlerts.Where(a => !a.IsRead);
+
+            if (!isAdmin && user?.FacilityId.HasValue == true)
+            {
+                query = query.Where(a => a.FacilityId == user.FacilityId.Value);
+            }
+
+            var unread = await query.ToListAsync();
+
+            foreach (var alert in unread)
+                alert.IsRead = true;
+
             await _context.SaveChangesAsync();
 
             return Ok(new { message = $"{unread.Count} alerts marked as read" });
+        }
+
+        private int GetCurrentUserId()
+        {
+            var value = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return int.TryParse(value, out int id) ? id : 0;
         }
     }
 }

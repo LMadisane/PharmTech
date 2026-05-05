@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
 using PharmTech.Models;
 using PharmTech.Models.DTOs;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -32,7 +33,7 @@ namespace PharmTech.Controllers
         {
             return View();
         }
-        
+
         public IActionResult EditUser(int id)
         {
             ViewBag.UserId = id;

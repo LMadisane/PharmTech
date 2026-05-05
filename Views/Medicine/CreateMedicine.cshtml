@@ -1,48 +1,60 @@
 ﻿@{
-    ViewData["Title"] = "Create Facility";
+    ViewData["Title"] = "Create Medicine";
 }
 
-<div x-data="createFacilityApp()" x-init="init()" class="max-w-2xl mx-auto">
+<div x-data="createMedicineApp()" x-init="init()" class="max-w-2xl mx-auto">
     <!-- Header -->
     <div class="mb-6">
         <div class="flex items-center gap-3">
-            <a asp-controller="Facility" asp-action="Index" class="text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition">
+            <a href="/Medicine/Index" class="text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition">
                 ←Back
             </a>
-            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Add New Facility</h1>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Add New Medicine</h1>
         </div>
-        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Add a healthcare facility to the system</p>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Add a medicine to the master list</p>
     </div>
 
     <!-- Form Card -->
     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-        <form @@submit.prevent="submitFacility()">
-            <!-- Facility Name -->
+        <form @@submit.prevent="submitMedicine()">
+            <!-- Medicine Name -->
             <div class="mb-5">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Facility Name *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Medicine Name *</label>
                 <input type="text"
                        x-model="form.name"
                        required
-                       placeholder="e.g., UTH (University Teaching Hospital)"
+                       placeholder="e.g., Paracetamol 500mg"
                        class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white">
             </div>
 
-            <!-- Address -->
+            <!-- Dosage Form -->
             <div class="mb-5">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Address</label>
-                <textarea x-model="form.address"
-                          rows="2"
-                          placeholder="e.g., Nationalist Rd, Lusaka"
-                          class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white"></textarea>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Dosage Form</label>
+                <select x-model="form.dosageForm"
+                        class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white">
+                    <option value="">Select dosage form...</option>
+                    <option value="Capsule">Capsule</option>
+                    <option value="Cream">Cream</option>
+                    <option value="Drops">Drops</option>
+                    <option value="Inhaler">Inhaler</option>
+                    <option value="Injection">Injection</option>
+                    <option value="Ointment">Ointment</option>
+                    <option value="Syrup">Syrup</option>
+                    <option value="Tablet">Tablet</option>                     
+                </select>
             </div>
 
-            <!-- Contact Info -->
+            <!-- Buffer Quantity -->
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Contact Information</label>
-                <input type="text"
-                       x-model="form.contactInfo"
-                       placeholder="e.g., +260 211 123 456"
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Buffer Quantity *</label>
+                <input type="number"
+                       x-model="form.bufferQty"
+                       required
+                       min="1"
+                       max="10000"
+                       placeholder="Minimum stock level before alert"
                        class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white">
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Low stock alert will trigger when quantity falls below this number</p>
             </div>
 
             <!-- Error Message -->
@@ -51,9 +63,9 @@
             <!-- Submit Buttons -->
             <div class="flex gap-3">
                 <button type="submit"
-                        x-bind:disabled="submitting || !form.name"
+                        x-bind:disabled="submitting || !form.name || !form.bufferQty"
                         class="flex-1 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-semibold px-6 py-3 rounded-xl transition duration-200">
-                    <span x-show="!submitting">Create Facility</span>
+                    <span x-show="!submitting">Create Medicine</span>
                     <span x-show="submitting" class="flex items-center justify-center gap-2">
                         <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -62,7 +74,8 @@
                         Creating...
                     </span>
                 </button>
-                <a asp-controller="Facility" asp-action="Index" class="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold px-6 py-3 rounded-xl transition duration-200 text-center">
+                <a href="/Medicine/Index"
+                       class="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold px-6 py-3 rounded-xl transition duration-200 text-center">
                     Cancel
                 </a>
             </div>
@@ -80,17 +93,17 @@
                 <div class="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
                     <span class="text-3xl">✅</span>
                 </div>
-                <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-2">Facility Created!</h3>
-                <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">The facility has been created successfully.</p>
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-2">Medicine Created!</h3>
+                <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">The medicine has been added to the master list.</p>
                 <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-4 text-left">
-                    <p class="text-sm text-gray-600 dark:text-gray-300"><strong>Name:</strong> <span x-text="createdFacilityName"></span></p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300"><strong>Name:</strong> <span x-text="createdMedicineName"></span></p>
                 </div>
                 <div class="flex gap-3">
                     <button @@click="resetForm()" class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-semibold px-4 py-2 rounded-xl transition">
                         Create Another
                     </button>
-                    <a asp-controller="Facility" asp-action="Index" class="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold px-4 py-2 rounded-xl transition text-center">
-                        View All Facilities
+                    <a href="/Medicine/Index" class="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold px-4 py-2 rounded-xl transition text-center">
+                        View All Medicines
                     </a>
                 </div>
             </div>
@@ -105,50 +118,48 @@
         }
     </style>
     <script>
-        function createFacilityApp() {
+        function createMedicineApp() {
             return {
                 submitting: false,
                 showSuccess: false,
-                createdFacilityName: '',
+                createdMedicineName: '',
                 error: null,
                 form: {
                     name: '',
-                    address: '',
-                    contactInfo: ''
+                    dosageForm: '',
+                    bufferQty: ''
                 },
 
-                init() {
-                    // Initialization if needed
-                },
+                init() {},
 
-                async submitFacility() {
+                async submitMedicine() {
                     this.submitting = true;
                     this.error = null;
 
                     try {
-                        const response = await fetch('/api/facility', {
+                        const response = await fetch('/api/medicine', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 name: this.form.name,
-                                address: this.form.address,
-                                contactInfo: this.form.contactInfo
+                                dosageForm: this.form.dosageForm,
+                                bufferQty: parseInt(this.form.bufferQty)
                             })
                         });
 
                         const result = await response.json();
 
                         if (result.success) {
-                            this.createdFacilityName = result.facility.name;
+                            this.createdMedicineName = result.medicine.name;
                             this.showSuccess = true;
-                            showToast('Facility created successfully!', 'success');
+                            showToast('Medicine created successfully!', 'success');
                         } else {
-                            this.error = result.message || 'Failed to create facility';
+                            this.error = result.message || 'Failed to create medicine';
                             showToast(this.error, 'error');
                         }
                     } catch (err) {
-                        console.error('Error creating facility:', err);
-                        this.error = 'An error occurred while creating the facility';
+                        console.error('Error creating medicine:', err);
+                        this.error = 'An error occurred while creating the medicine';
                         showToast(this.error, 'error');
                     } finally {
                         this.submitting = false;
@@ -159,8 +170,8 @@
                     this.showSuccess = false;
                     this.form = {
                         name: '',
-                        address: '',
-                        contactInfo: ''
+                        dosageForm: '',
+                        bufferQty: ''
                     };
                     this.error = null;
                 }

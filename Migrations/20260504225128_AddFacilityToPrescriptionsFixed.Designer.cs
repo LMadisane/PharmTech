@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PharmTech.Data;
 
@@ -11,9 +12,11 @@ using PharmTech.Data;
 namespace PharmTech.Migrations
 {
     [DbContext(typeof(PharmTechContext))]
-    partial class PharmTechContextModelSnapshot : ModelSnapshot
+    [Migration("20260504225128_AddFacilityToPrescriptionsFixed")]
+    partial class AddFacilityToPrescriptionsFixed
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -370,6 +373,9 @@ namespace PharmTech.Migrations
                     b.Property<int>("MedId")
                         .HasColumnType("int");
 
+                    b.Property<int>("MedicineMedId")
+                        .HasColumnType("int");
+
                     b.Property<int>("PatientId")
                         .HasColumnType("int");
 
@@ -388,7 +394,7 @@ namespace PharmTech.Migrations
 
                     b.HasIndex("FacilityId");
 
-                    b.HasIndex("MedId");
+                    b.HasIndex("MedicineMedId");
 
                     b.HasIndex("PatientId");
 
@@ -402,9 +408,6 @@ namespace PharmTech.Migrations
                         .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ReceiptId"));
-
-                    b.Property<int?>("FacilityId")
-                        .HasColumnType("int");
 
                     b.Property<DateTime>("GeneratedAt")
                         .HasColumnType("datetime(6)");
@@ -439,8 +442,6 @@ namespace PharmTech.Migrations
                         .HasColumnType("longtext");
 
                     b.HasKey("ReceiptId");
-
-                    b.HasIndex("FacilityId");
 
                     b.HasIndex("GeneratedById");
 
@@ -804,19 +805,19 @@ namespace PharmTech.Migrations
                     b.HasOne("PharmTech.Models.Facility", "Facility")
                         .WithMany()
                         .HasForeignKey("FacilityId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("PharmTech.Models.Medicine", "Medicine")
                         .WithMany("Prescriptions")
-                        .HasForeignKey("MedId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasForeignKey("MedicineMedId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("PharmTech.Models.User", "Patient")
                         .WithMany("Prescriptions")
                         .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Facility");
@@ -828,17 +829,11 @@ namespace PharmTech.Migrations
 
             modelBuilder.Entity("PharmTech.Models.Receipt", b =>
                 {
-                    b.HasOne("PharmTech.Models.Facility", "Facility")
-                        .WithMany()
-                        .HasForeignKey("FacilityId");
-
                     b.HasOne("PharmTech.Models.User", "GeneratedBy")
                         .WithMany()
                         .HasForeignKey("GeneratedById")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("Facility");
 
                     b.Navigation("GeneratedBy");
                 });

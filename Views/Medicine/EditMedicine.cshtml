@@ -1,17 +1,17 @@
 ﻿@{
-    ViewData["Title"] = "Edit Facility";
+    ViewData["Title"] = "Edit Medicine";
 }
 
-<div x-data="editFacilityApp()" x-init="init()" class="max-w-2xl mx-auto">
+<div x-data="editMedicineApp()" x-init="init()" class="max-w-2xl mx-auto">
     <!-- Header -->
     <div class="mb-6">
         <div class="flex items-center gap-3">
-            <a asp-controller="Facility" asp-action="Index" class="text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition">
+            <a href="/Medicine/Index" class="text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition">
                 ←Back
             </a>
-            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Edit Facility</h1>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Edit Medicine</h1>
         </div>
-        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Update facility information</p>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Update medicine information</p>
     </div>
 
     <!-- Loading State -->
@@ -22,35 +22,48 @@
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
         </div>
-        <p class="mt-2 text-gray-400 text-sm">Loading facility data...</p>
+        <p class="mt-2 text-gray-400 text-sm">Loading medicine data...</p>
     </div>
 
     <!-- Form Card -->
     <div x-show="!loading" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-        <form @@submit.prevent="updateFacility()">
-            <!-- Facility Name -->
+        <form @@submit.prevent="updateMedicine()">
+            <!-- Medicine Name -->
             <div class="mb-5">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Facility Name *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Medicine Name *</label>
                 <input type="text"
                        x-model="form.name"
                        required
                        class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white">
             </div>
 
-            <!-- Address -->
+            <!-- Dosage Form -->
             <div class="mb-5">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Address</label>
-                <textarea x-model="form.address"
-                          rows="2"
-                          class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white"></textarea>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Dosage Form</label>
+                <select x-model="form.dosageForm"
+                        class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white">
+                    <option value="">Select dosage form...</option>
+                    <option value="Capsule">Capsule</option>
+                    <option value="Cream">Cream</option>
+                    <option value="Drops">Drops</option>
+                    <option value="Inhaler">Inhaler</option>
+                    <option value="Injection">Injection</option>
+                    <option value="Ointment">Ointment</option>
+                    <option value="Syrup">Syrup</option>
+                    <option value="Tablet">Tablet</option>
+                </select>
             </div>
 
-            <!-- Contact Info -->
+            <!-- Buffer Quantity -->
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Contact Information</label>
-                <input type="text"
-                       x-model="form.contactInfo"
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Buffer Quantity *</label>
+                <input type="number"
+                       x-model="form.bufferQty"
+                       required
+                       min="1"
+                       max="10000"
                        class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white">
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Low stock alert will trigger when quantity falls below this number</p>
             </div>
 
             <!-- Error Message -->
@@ -59,7 +72,7 @@
             <!-- Submit Buttons -->
             <div class="flex gap-3">
                 <button type="submit"
-                        x-bind:disabled="updating || !form.name"
+                        x-bind:disabled="updating || !form.name || !form.bufferQty"
                         class="flex-1 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-semibold px-6 py-3 rounded-xl transition duration-200">
                     <span x-show="!updating">Save Changes</span>
                     <span x-show="updating" class="flex items-center justify-center gap-2">
@@ -70,7 +83,8 @@
                         Saving...
                     </span>
                 </button>
-                <a asp-controller="Facility" asp-action="Index" class="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold px-6 py-3 rounded-xl transition duration-200 text-center">
+                <a href="/Medicine"
+                       class="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold px-6 py-3 rounded-xl transition duration-200 text-center">
                     Cancel
                 </a>
             </div>
@@ -85,76 +99,75 @@
         }
     </style>
     <script>
-        function editFacilityApp() {
+        function editMedicineApp() {
             return {
-                facilityId: null,
+                medicineId: null,
                 loading: true,
                 updating: false,
                 error: null,
                 form: {
                     name: '',
-                    address: '',
-                    contactInfo: ''
+                    dosageForm: '',
+                    bufferQty: ''
                 },
 
                 init() {
-                    // Get facility ID from URL
                     const path = window.location.pathname;
                     const parts = path.split('/');
-                    this.facilityId = parts[parts.length - 1];
-                    this.loadFacility();
+                    this.medicineId = parts[parts.length - 1];
+                    this.loadMedicine();
                 },
 
-                async loadFacility() {
+                async loadMedicine() {
                     this.loading = true;
                     try {
-                        const response = await fetch(`/api/facility/${this.facilityId}`);
+                        const response = await fetch(`/api/medicine/${this.medicineId}`);
                         const result = await response.json();
                         
                         if (result && result.success) {
-                            this.form.name = result.facility.name;
-                            this.form.address = result.facility.address || '';
-                            this.form.contactInfo = result.facility.contactInfo || '';
+                            this.form.name = result.medicine.name;
+                            this.form.dosageForm = result.medicine.dosageForm || '';
+                            this.form.bufferQty = result.medicine.bufferQty;
                         } else {
-                            this.error = result.message || 'Failed to load facility';
+                            this.error = result.message || 'Failed to load medicine';
                             showToast(this.error, 'error');
                         }
                     } catch (err) {
-                        console.error('Error loading facility:', err);
-                        this.error = 'An error occurred while loading the facility';
+                        console.error('Error loading medicine:', err);
+                        this.error = 'An error occurred while loading the medicine';
                         showToast(this.error, 'error');
                     } finally {
                         this.loading = false;
                     }
                 },
 
-                async updateFacility() {
+                async updateMedicine() {
                     this.updating = true;
                     this.error = null;
 
                     try {
-                        const response = await fetch(`/api/facility/${this.facilityId}`, {
+                        const response = await fetch(`/api/medicine/${this.medicineId}`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 name: this.form.name,
-                                address: this.form.address,
-                                contactInfo: this.form.contactInfo
+                                dosageForm: this.form.dosageForm,
+                                bufferQty: parseInt(this.form.bufferQty)
                             })
                         });
 
                         const result = await response.json();
 
                         if (result.success) {
-                            showToast('Facility updated successfully!', 'success');
-                            window.location.href = '/Facility/Index';
+                            showToast('Medicine updated successfully!', 'success');
+                            window.location.href = '/Medicine';
                         } else {
-                            this.error = result.message || 'Failed to update facility';
+                            this.error = result.message || 'Failed to update medicine';
                             showToast(this.error, 'error');
                         }
                     } catch (err) {
-                        console.error('Error updating facility:', err);
-                        this.error = 'An error occurred while updating the facility';
+                        console.error('Error updating medicine:', err);
+                        this.error = 'An error occurred while updating the medicine';
                         showToast(this.error, 'error');
                     } finally {
                         this.updating = false;

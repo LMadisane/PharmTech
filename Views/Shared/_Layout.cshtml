@@ -1,6 +1,12 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
+    <script>
+            if (localStorage.getItem('darkMode') === 'true') {
+                document.documentElement.classList.add('dark');
+            }
+    </script>
+
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - PharmTech | Smart Medicine. Seamless Care.</title>
@@ -71,7 +77,6 @@
                     <span class="text-xl font-bold tracking-wide text-white">PharmTech</span>
                 </div>
                 <div x-show="!sidebarOpen" class="w-full">
-
                     <!-- No pill when collapsed -->
                 </div>
                 <button @@click="toggleSidebar()"
@@ -94,13 +99,118 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                     </svg>
                     <span x-show="sidebarOpen" class="whitespace-nowrap">Dashboard</span>
-                    <!-- Tooltip - always present, only shows on hover when sidebar is collapsed -->
                     <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
                         Dashboard
                     </span>
                 </a>
+                
+                <!-- Audit Logs - Admin only -->
+                @if (User.IsInRole("Admin"))
+                {
+                    <a asp-controller="AuditLogView" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">Audit Logs</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            Audit Logs
+                        </span>
+                    </a>
+                }
 
-                <!-- Prescriptions -->
+                <!-- Dispensing - Pharmacist only -->
+                @if (User.IsInRole("Pharmacist"))
+                {
+                    <a asp-controller="Dispensing" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">Dispensing</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            Dispensing
+                        </span>
+                    </a>
+                }
+
+                <!-- Drug Returns - Admin, Pharmacist -->
+                @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
+                {
+                    <a asp-controller="DrugReturns" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">Drug Returns</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            Drug Returns
+                        </span>
+                    </a>
+                }
+
+                <!-- Facilities - Admin only -->
+                @if (User.IsInRole("Admin"))
+                {
+                    <a asp-controller="Facility" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">Facilities</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            Facilities
+                        </span>
+                    </a>
+                }
+
+                <!-- Inventory - Admin, Pharmacist, Doctor (read-only) -->
+                @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist") || User.IsInRole("Doctor"))
+                {
+                    <a asp-controller="Inventory" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">Inventory</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            Inventory
+                        </span>
+                    </a>
+                }
+
+                <!-- Medicines - Admin only -->
+                @if (User.IsInRole("Admin"))
+                {
+                    <a asp-controller="Medicine" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2v4M8 6h8M12 22v-4m-4 2h8" />
+                            <circle cx="12" cy="14" r="4" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">Medicines</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            Medicines
+                        </span>
+                    </a>
+                }
+
+                <!-- Order Requests - Admin, Pharmacist -->
+                @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
+                {
+                    <a asp-controller="OrderRequestView" asp-action="Index"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
+                        <span x-show="sidebarOpen" class="whitespace-nowrap">Order Requests</span>
+                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                            Order Requests
+                        </span>
+                    </a>
+                }
+
+                <!-- Prescriptions - Admin, Doctor, Pharmacist -->
                 @if (User.IsInRole("Admin") || User.IsInRole("Doctor") || User.IsInRole("Pharmacist"))
                 {
                     <a asp-controller="Prescription" asp-action="Index"
@@ -122,72 +232,12 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                     </svg>
                     <span x-show="sidebarOpen" class="whitespace-nowrap">Receipts</span>
-                    <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                    <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
                         Receipts
                     </span>
                 </a>
 
-                <!-- Dispensing -->
-                @if (User.IsInRole("Pharmacist"))
-                {
-                    <a asp-controller="Dispensing" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
-                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
-                        <span x-show="sidebarOpen" class="whitespace-nowrap">Dispensing</span>
-                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                            Dispensing
-                        </span>
-                    </a>
-                }
-
-                <!-- Drug Returns -->
-                @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
-                {
-                    <a asp-controller="DrugReturnsView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
-                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        <span x-show="sidebarOpen" class="whitespace-nowrap">Drug Returns</span>
-                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                            Drug Returns
-                        </span>
-                    </a>
-                }
-
-                <!-- Inventory -->
-                @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
-                {
-                    <a asp-controller="InventoryView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
-                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                        </svg>
-                        <span x-show="sidebarOpen" class="whitespace-nowrap">Inventory</span>
-                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                            Inventory
-                        </span>
-                    </a>
-                }
-
-                <!-- Order Requests -->
-                @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
-                {
-                    <a asp-controller="OrderRequestView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
-                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                        </svg>
-                        <span x-show="sidebarOpen" class="whitespace-nowrap">Order Requests</span>
-                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                            Order Requests
-                        </span>
-                    </a>
-                }
-
-                <!-- Suppliers -->
+                <!-- Suppliers - Admin, Pharmacist -->
                 @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
                 {
                     <a asp-controller="SupplierView" asp-action="Index"
@@ -201,38 +251,8 @@
                         </span>
                     </a>
                 }
-
-                <!-- Facilities -->
-                @if (User.IsInRole("Admin"))
-                {
-                    <a asp-controller="Facility" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
-                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                        <span x-show="sidebarOpen" class="whitespace-nowrap">Facilities</span>
-                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                            Facilities
-                        </span>
-                    </a>
-                }
-
-                <!-- Audit Logs -->
-                @if (User.IsInRole("Admin"))
-                {
-                    <a asp-controller="AuditLogView" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-teal-500 dark:hover:bg-teal-800 transition text-white group relative">
-                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <span x-show="sidebarOpen" class="whitespace-nowrap">Audit Logs</span>
-                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                            Audit Logs
-                        </span>
-                    </a>
-                }
-
-                <!-- User Management -->
+                                                                
+                <!-- User Management - Admin only -->
                 @if (User.IsInRole("Admin"))
                 {
                     <a asp-controller="UserManagement" asp-action="Index"
@@ -253,11 +273,11 @@
             <div class="px-2 py-4 border-t border-teal-500 dark:border-teal-800">
                 <a asp-controller="Account" asp-action="Logout"
                        class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-500 transition text-white group relative">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
                     <span x-show="sidebarOpen" class="whitespace-nowrap">Logout</span>
-                    <span class="absolute left-14 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+                    <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
                         Logout
                     </span>
                 </a>

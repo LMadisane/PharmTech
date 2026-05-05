@@ -1,0 +1,192 @@
+﻿@{
+    ViewData["Title"] = "Medicines";
+}
+
+<div x-data="medicineApp()" x-init="init()" class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">💊 Medicines List</h1>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">Manage all medicines in the system</p>
+        </div>
+        <a href="/Medicine/CreateMedicine"
+               class="bg-teal-600 hover:bg-teal-700 text-white font-semibold px-5 py-2.5 rounded-xl transition duration-200 text-sm flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add New Medicine
+        </a>
+    </div>
+
+    <!-- Search Filter -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-6">
+        <div class="flex gap-3">
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Medicines</label>
+                <input type="text"
+                       x-model="searchTerm"
+                @@input="filterMedicines()"
+                       placeholder="Search by name or dosage form..."
+                       class="w-full px-4 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+            </div>
+            <div class="flex items-end">
+                <button @@click="clearSearch()"
+                    x-show="searchTerm"
+                    class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-xl text-sm transition">
+                    Clear
+                </button>
+            </div>
+        </div>
+        <p class="text-xs text-gray-400 mt-2" x-show="filteredMedicines.length !== medicines.length">
+            Showing <span x-text="filteredMedicines.length"></span> of <span x-text="medicines.length"></span> medicines
+        </p>
+    </div>
+
+    <!-- Medicines Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Dosage Form</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Buffer Qty</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    <template x-for="medicine in filteredMedicines" :key="medicine.medId">
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                            <td class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-200" x-text="medicine.name"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="medicine.dosageForm || 'N/A'"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="medicine.bufferQty"></td>
+                            <td class="px-6 py-4">
+                                <a :href="'/Medicine/EditMedicine/' + medicine.medId"
+                                       class="text-teal-600 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300 text-sm font-medium mr-3 transition">
+                                    Edit
+                                </a>
+                                <button @@click="deleteMedicine(medicine.medId, medicine.name)"
+                                    class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium transition">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="loading && medicines.length === 0">
+                        <td colspan="4" class="px-6 py-12 text-center">
+                            <div class="flex justify-center">
+                                <svg class="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </div>
+                            <p class="mt-2 text-gray-400 text-sm">Loading medicines...</p>
+                        </td>
+                    </tr>
+                    <tr x-show="!loading && filteredMedicines.length === 0 && medicines.length > 0">
+                        <td colspan="4" class="px-6 py-12 text-center">
+                            <div class="text-gray-400">
+                                <span class="text-4xl">🔍</span>
+                                <p class="mt-2">No medicines match your search</p>
+                                <p class="text-xs mt-1">Try a different search term</p>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr x-show="!loading && medicines.length === 0">
+                        <td colspan="4" class="px-6 py-12 text-center">
+                            <div class="text-gray-400">
+                                <span class="text-4xl">📭</span>
+                                <p class="mt-2">No medicines found</p>
+                                <p class="text-xs mt-1">Click "Add New Medicine" to create one</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+    <script>
+        function medicineApp() {
+            return {
+                medicines: [],
+                filteredMedicines: [],
+                loading: false,
+                searchTerm: '',
+
+                init() {
+                    this.loadMedicines();
+                },
+
+                async loadMedicines() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/medicine');
+                        const result = await response.json();
+                        
+                        if (result && result.success) {
+                            this.medicines = result.medicines || [];
+                            this.filteredMedicines = this.medicines;
+                        } else {
+                            this.medicines = [];
+                            this.filteredMedicines = [];
+                        }
+                    } catch (err) {
+                        console.error('Error loading medicines:', err);
+                        this.medicines = [];
+                        this.filteredMedicines = [];
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                filterMedicines() {
+                    if (!this.searchTerm) {
+                        this.filteredMedicines = this.medicines;
+                        return;
+                    }
+                    
+                    const term = this.searchTerm.toLowerCase();
+                    this.filteredMedicines = this.medicines.filter(medicine =>
+                        medicine.name.toLowerCase().includes(term) ||
+                        (medicine.dosageForm && medicine.dosageForm.toLowerCase().includes(term))
+                    );
+                },
+
+                clearSearch() {
+                    this.searchTerm = '';
+                    this.filteredMedicines = this.medicines;
+                },
+
+                async deleteMedicine(id, name) {
+                    if (!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) return;
+                    
+                    try {
+                        const response = await fetch(`/api/medicine/${id}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const result = await response.json();
+
+                        if (result.success) {
+                            showToast(result.message, 'success');
+                            this.loadMedicines();
+                        } else {
+                            showToast(result.message || 'Failed to delete medicine', 'error');
+                        }
+                    } catch (err) {
+                        console.error('Error deleting medicine:', err);
+                        showToast('An error occurred', 'error');
+                    }
+                }
+            }
+        }
+    </script>
+}

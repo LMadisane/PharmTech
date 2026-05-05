@@ -154,6 +154,5 @@ namespace PharmTech.Services
             await db.SaveChangesAsync(cancellationToken);
             _logger.LogInformation("Expiry date check completed at {time}.", DateTimeOffset.Now);
         }
-
     }
 }

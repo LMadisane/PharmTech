@@ -6,14 +6,15 @@ using PharmTech.Models;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using System.Security.Claims;
 
 namespace PharmTech.Controllers
 {
     [Authorize(Roles = "Admin,Doctor,Pharmacist")]
-    public class ReceiptViewController(PharmTechContext context, ILogger<ReceiptViewController> logger) : Controller
+    public class ReceiptController(PharmTechContext context, ILogger<ReceiptController> logger) : Controller
     {
         private readonly PharmTechContext _context = context;
-        private readonly ILogger<ReceiptViewController> _logger = logger;
+        private readonly ILogger<ReceiptController> _logger = logger;
 
         // ==================== VIEW ====================
 
@@ -26,17 +27,28 @@ namespace PharmTech.Controllers
 
         [HttpGet("api/receipt")]
         public async Task<IActionResult> GetReceipts(
-            [FromQuery] string? patientName,
-            [FromQuery] string? medicineName,
-            [FromQuery] string? receiptType,
-            [FromQuery] DateTime? from,
-            [FromQuery] DateTime? to)
+    [FromQuery] string? patientName,
+    [FromQuery] string? medicineName,
+    [FromQuery] string? receiptType,
+    [FromQuery] DateTime? from,
+    [FromQuery] DateTime? to)
         {
             try
             {
+                // Get current user's facility
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var user = await _context.Users.FindAsync(userId);
+                var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
                 var query = _context.Receipts
                     .Include(r => r.GeneratedBy)
                     .AsQueryable();
+
+                // Non-Admins can only see receipts from their own facility
+                if (userRole != "Admin" && user != null && user.FacilityId.HasValue)
+                {
+                    query = query.Where(r => r.FacilityId == user.FacilityId.Value);
+                }
 
                 if (!string.IsNullOrEmpty(patientName))
                     query = query.Where(r => r.PatientName.Contains(patientName));
@@ -204,7 +216,7 @@ namespace PharmTech.Controllers
                         col.Item().Text("💊 PharmTech")
                             .Bold().FontSize(20).FontColor(Colors.Blue.Darken3);
 
-                        col.Item().Text("Pharmacy Management System")
+                        col.Item().Text("Smart Medicine. Seamless Care.")
                             .FontSize(10).FontColor(Colors.Grey.Medium);
 
                         col.Item().PaddingVertical(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);

@@ -3,34 +3,87 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
 using PharmTech.Models;
+using PharmTech.Models.DTOs;
+using System.Security.Claims;
 
 namespace PharmTech.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    [Authorize(Roles = "Admin,Pharmacist")] // Only Admin and Pharmacist handle drug returns
-    public class DrugReturnsController(PharmTechContext context) : ControllerBase
+    [Authorize(Roles = "Admin,Pharmacist")]
+    public class DrugReturnsController : Controller
     {
-        private readonly PharmTechContext _context = context;
+        private readonly PharmTechContext _context;
+        private readonly ILogger<DrugReturnsController> _logger;
 
-        // Creating Return Request - (Pharmacist logs it)
-        [HttpPost]
-        public async Task<IActionResult> CreateReturn([FromBody] DrugReturn model)
+        public DrugReturnsController(PharmTechContext context, ILogger<DrugReturnsController> logger)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            model.Status = "Pending";
-            model.ProcessedAt = DateTime.Now;
-
-            _context.DrugReturns.Add(model);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Return request created", model });
+            _context = context;
+            _logger = logger;
         }
 
-        // Get return by ID
-        [HttpGet("{id}")]
+        // ==================== VIEWS ====================
+
+        public IActionResult Index()
+        {
+            return View();
+        }
+
+        [HttpGet]
+        [ActionName("CreateReturn")]
+        public IActionResult CreateReturn()
+        {
+            return View();
+        }
+
+        // ==================== API ENDPOINTS ====================
+
+        // GET: api/drugreturns
+        [HttpGet("api/drugreturns")]
+        public async Task<IActionResult> GetAllReturns()
+        {
+            try
+            {
+                var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var user = await _context.Users.FindAsync(userId);
+
+                var query = _context.DrugReturns
+                    .Include(r => r.Medicine)
+                    .Include(r => r.Patient)
+                    .AsQueryable();
+
+                if (userRole != "Admin" && user != null && user.FacilityId.HasValue)
+                {
+                    query = query.Where(r => r.FacilityId == user.FacilityId.Value);
+                }
+
+                var returns = await query
+                    .OrderByDescending(r => r.ProcessedAt)
+                    .Select(r => new
+                    {
+                        r.ReturnId,
+                        r.MedId,
+                        r.FacilityId,
+                        r.Quantity,
+                        r.Reason,
+                        r.Status,
+                        r.IsRestockable,
+                        r.ProcessedAt,
+                        medicineName = r.Medicine != null ? r.Medicine.Name : "Unknown",
+                        patientName = r.Patient != null ? r.Patient.Name : "Unknown"
+                    })
+                    .ToListAsync();
+
+                return Ok(new { success = true, data = returns });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching returns");
+                return Ok(new { success = true, data = new List<object>() });
+            }
+        }
+
+        // GET: api/drugreturns/{id}
+        [HttpGet("api/drugreturns/{id}")]
         public async Task<IActionResult> GetReturn(int id)
         {
             var result = await _context.DrugReturns
@@ -39,119 +92,227 @@ namespace PharmTech.Controllers
                 .FirstOrDefaultAsync(r => r.ReturnId == id);
 
             if (result == null)
-                return NotFound();
+                return NotFound(new { success = false, message = "Return not found" });
 
-            return Ok(result);
+            return Ok(new { success = true, data = result });
         }
 
-        // Approving the return
-        [HttpPut("{id}/approve")]
-        public async Task<IActionResult> ApproveReturn(int id, int processedById)
+        // POST: api/drugreturns
+        [HttpPost("api/drugreturns")]
+        public async Task<IActionResult> CreateReturnRequest([FromBody] CreateDrugReturnDto dto)
         {
-            var returnItem = await _context.DrugReturns
-                .FirstOrDefaultAsync(r => r.ReturnId == id);
-
-            if (returnItem == null)
-                return NotFound();
-
-            if (returnItem.Status != "Pending")
-                return BadRequest("Already processed");
-
-            returnItem.Status = "Approved";
-            returnItem.ProcessedById = processedById;
-
-            // Only add to stock if retun is safe
-            if (returnItem.IsRestockable)
+            try
             {
-                var inventory = await _context.InventoryItems
-                    .FirstOrDefaultAsync(i =>
-                    i.MedId == returnItem.MedId &&
-                    i.FacilityId == returnItem.FacilityId);
-
-                if (inventory != null)
+                if (!ModelState.IsValid)
                 {
-                    var newBatch = new MedicineBatch
-                    {
-                        MedId = returnItem.MedId,
-                        FacilityId = returnItem.FacilityId,
-                        LotNumber = "RETURN-" + Guid.NewGuid().ToString().Substring(0, 6),
-                        Quantity = returnItem.Quantity,
-                        ExpiryDate = DateTime.Now,
-                        IsFlagged = true
-                    };
-                    _context.MedicineBatches.Add(newBatch);
-                    inventory.Quantity += returnItem.Quantity;
+                    var errors = ModelState
+                        .Where(x => x.Value?.Errors.Any() == true)
+                        .Select(x => new { x.Key, Errors = x.Value?.Errors.Select(e => e.ErrorMessage) })
+                        .ToList();
+
+                    _logger.LogWarning("Model validation failed: {@Errors}", errors);
+                    return BadRequest(new { success = false, message = "Invalid request data", errors });
                 }
 
-            }
-            await _context.SaveChangesAsync();
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var user = await _context.Users.FindAsync(userId);
 
-            return Ok(new { message = "Return approved", returnItem });
-        }
+                var medicine = await _context.Medicines.FindAsync(dto.MedId);
+                if (medicine == null)
+                    return BadRequest(new { success = false, message = "Medicine not found" });
 
-        // Rejecting returns
-        [HttpPut("{id}/reject")]
-        public async Task<IActionResult> RejectReturn(int id, int processedById)
-        {
-            var returnItem = await _context.DrugReturns
-                .FirstOrDefaultAsync(r => r.ReturnId == id);
+                var patient = await _context.Users.FindAsync(dto.PatientId);
+                if (patient == null)
+                    return BadRequest(new { success = false, message = "Patient not found" });
 
-            if (returnItem == null)
-                return NotFound();
-
-            if (returnItem.Status != "Pending")
-                return BadRequest("Already processed");
-
-            returnItem.Status = "Rejected";
-            returnItem.ProcessedById = processedById;
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Return rejected", returnItem });
-        }
-
-        // Recalling drugs - (Batch-based)
-        [HttpPost("recall")]
-        public async Task<IActionResult> RecallDrug(string lotNumber)
-        {
-            var batches = await _context.MedicineBatches
-                .Where(b => b.LotNumber == lotNumber && b.Quantity > 0)
-                .ToListAsync();
-
-            if (!batches.Any())
-                return NotFound("No batches found for this lot");
-
-            foreach (var batch in batches)
-            {
-                // Move stock to disposal
-                var disposal = new DisposalRecord
+                var model = new DrugReturn
                 {
-                    MedId = batch.MedId,
-                    FacilityId = batch.FacilityId,
-                    BatchId = batch.BatchId,
-                    Quantity = batch.Quantity,
-                    Reason = "Recalled",
-                    RecordedAt = DateTime.Now
+                    MedId = dto.MedId,
+                    PatientId = dto.PatientId,
+                    Quantity = dto.Quantity,
+                    Reason = dto.Reason,
+                    IsRestockable = dto.IsRestockable,
+                    Status = "Pending",
+                    ProcessedAt = DateTime.Now,
+                    FacilityId = user?.FacilityId ?? 0
                 };
 
-                _context.DisposalRecords.Add(disposal);
+                _context.DrugReturns.Add(model);
+                await _context.SaveChangesAsync();
 
-                // Reduce inventory summary
-                var inventory = await _context.InventoryItems
-                    .FirstOrDefaultAsync(i =>
-                        i.MedId == batch.MedId &&
-                        i.FacilityId == batch.FacilityId);
-
-                if (inventory != null)
-                    inventory.Quantity -= batch.Quantity;
-
-                // Clear batch
-                batch.Quantity = 0;
+                return Ok(new { success = true, message = "Return request created successfully" });
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating return");
+                return StatusCode(500, new { success = false, message = $"An error occurred: {ex.Message}" });
+            }
+        }
 
-            await _context.SaveChangesAsync();
+        // PUT: api/drugreturns/{id}/approve
+        [HttpPut("api/drugreturns/{id}/approve")]
+        public async Task<IActionResult> ApproveReturn(int id, [FromQuery] int processedById)
+        {
+            try
+            {
+                var returnItem = await _context.DrugReturns
+                    .Include(r => r.Medicine)
+                    .Include(r => r.Patient)
+                    .FirstOrDefaultAsync(r => r.ReturnId == id);
 
-            return Ok("Recall completed"); 
+                if (returnItem == null)
+                    return NotFound(new { success = false, message = "Return not found" });
+
+                if (returnItem.Status != "Pending")
+                    return BadRequest(new { success = false, message = "Already processed" });
+
+                returnItem.Status = "Approved";
+                returnItem.ProcessedById = processedById;
+
+                if (returnItem.IsRestockable)
+                {
+                    var inventory = await _context.InventoryItems
+                        .FirstOrDefaultAsync(i =>
+                            i.MedId == returnItem.MedId &&
+                            i.FacilityId == returnItem.FacilityId);
+
+                    if (inventory != null)
+                    {
+                        var newBatch = new MedicineBatch
+                        {
+                            MedId = returnItem.MedId,
+                            FacilityId = returnItem.FacilityId,
+                            LotNumber = "RETURN-" + Guid.NewGuid().ToString().Substring(0, 6).ToUpper(),
+                            Quantity = returnItem.Quantity,
+                            ExpiryDate = DateTime.Now.AddMonths(6),
+                            IsFlagged = true
+                        };
+                        _context.MedicineBatches.Add(newBatch);
+                        inventory.Quantity += returnItem.Quantity;
+                    }
+                }
+
+                var receipt = new Receipt
+                {
+                    ReceiptNumber = $"RET-{DateTime.Now:yyyyMMdd}-{returnItem.ReturnId}",
+                    ReceiptType = "Return",
+                    GeneratedById = processedById,
+                    PatientName = returnItem.Patient?.Name ?? "Unknown",
+                    MedicineName = returnItem.Medicine?.Name ?? "Unknown",
+                    Quantity = returnItem.Quantity,
+                    Notes = $"Return reason: {returnItem.Reason} | Restocked: {(returnItem.IsRestockable ? "Yes" : "No")}",
+                    LinkedRecordId = returnItem.ReturnId,
+                    GeneratedAt = DateTime.Now,
+                    FacilityId = returnItem.FacilityId
+                };
+
+                _context.Receipts.Add(receipt);
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Return approved successfully",
+                    data = new
+                    {
+                        returnItem.ReturnId,
+                        returnItem.Status,
+                        returnItem.IsRestockable
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error approving return");
+                return StatusCode(500, new { success = false, message = "An error occurred" });
+            }
+        }
+
+        // PUT: api/drugreturns/{id}/reject
+        [HttpPut("api/drugreturns/{id}/reject")]
+        public async Task<IActionResult> RejectReturn(int id, [FromQuery] int processedById)
+        {
+            try
+            {
+                var returnItem = await _context.DrugReturns
+                    .FirstOrDefaultAsync(r => r.ReturnId == id);
+
+                if (returnItem == null)
+                    return NotFound(new { success = false, message = "Return not found" });
+
+                if (returnItem.Status != "Pending")
+                    return BadRequest(new { success = false, message = "Already processed" });
+
+                returnItem.Status = "Rejected";
+                returnItem.ProcessedById = processedById;
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Return rejected successfully",
+                    data = new
+                    {
+                        returnItem.ReturnId,
+                        returnItem.Status
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error rejecting return");
+                return StatusCode(500, new { success = false, message = "An error occurred" });
+            }
+        }
+
+        // POST: api/drugreturns/recall
+        [HttpPost("api/drugreturns/recall")]
+        public async Task<IActionResult> RecallDrug([FromQuery] string lotNumber)
+        {
+            try
+            {
+                var batches = await _context.MedicineBatches
+                    .Where(b => b.LotNumber == lotNumber && b.Quantity > 0)
+                    .ToListAsync();
+
+                if (!batches.Any())
+                    return NotFound(new { success = false, message = "No batches found for this lot" });
+
+                foreach (var batch in batches)
+                {
+                    var disposal = new DisposalRecord
+                    {
+                        MedId = batch.MedId,
+                        FacilityId = batch.FacilityId,
+                        BatchId = batch.BatchId,
+                        Quantity = batch.Quantity,
+                        Reason = "Recalled",
+                        RecordedAt = DateTime.Now
+                    };
+
+                    _context.DisposalRecords.Add(disposal);
+
+                    var inventory = await _context.InventoryItems
+                        .FirstOrDefaultAsync(i =>
+                            i.MedId == batch.MedId &&
+                            i.FacilityId == batch.FacilityId);
+
+                    if (inventory != null)
+                        inventory.Quantity -= batch.Quantity;
+
+                    batch.Quantity = 0;
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success = true, message = "Recall completed" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error recalling drug");
+                return StatusCode(500, new { success = false, message = "An error occurred" });
+            }
         }
     }
 }

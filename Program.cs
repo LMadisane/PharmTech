@@ -13,7 +13,11 @@ builder.Services.AddDbContext<PharmTechContext>(options =>
     ));
 
 // Controllers
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+    });
 
 // Authentication (RBAC)
 builder.Services.AddAuthentication("Cookies")
@@ -21,7 +25,22 @@ builder.Services.AddAuthentication("Cookies")
     {
         options.LoginPath = "/account/login";
         options.AccessDeniedPath = "/account/accessdenied";
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; //Fixes the http/https mismatch
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+
+        // ADD THIS - Prevent redirect to login page for API requests
+        options.Events.OnRedirectToLogin = context =>
+        {
+            // If the request is to an API endpoint, return 401 Unauthorized
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/json";
+                return context.Response.WriteAsync("{\"success\":false,\"message\":\"Unauthorized\"}");
+            }
+            // Otherwise, redirect to login page for normal MVC requests
+            context.Response.Redirect(context.RedirectUri);
+            return Task.CompletedTask;
+        };
     });
 
 // Antiforgery cookie fix
@@ -84,7 +103,7 @@ app.UseRouting();
 // Session must come before Authentication and Authorization
 app.UseSession();
 
-// Comes before Authorization
+// Authentication
 app.UseAuthentication();
 
 // User Authorization
@@ -131,7 +150,13 @@ app.MapControllerRoute(
 app.MapControllerRoute(
     name: "inventory",
     pattern: "inventory/{action=Index}/{id?}",
-    defaults: new { controller = "InventoryView" });
+    defaults: new { controller = "Inventory" });
+
+// Medicines
+app.MapControllerRoute(
+    name: "medicines",
+    pattern: "medicines/{action=Index}/{id?}",
+    defaults: new { controller = "Medicine" });
 
 // Order Requests
 app.MapControllerRoute(

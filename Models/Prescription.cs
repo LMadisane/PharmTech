@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PharmTech.Models
 {
@@ -28,6 +29,12 @@ namespace PharmTech.Models
 
         [Required]
         public string Status { get; set; } = "Pending";
+
+        [Required]
+        public int FacilityId { get; set; }
+
+        [ForeignKey("FacilityId")]
+        public virtual Facility Facility { get; set; } = null!;
 
         public virtual ICollection<DispenseRecord> DispenseRecords { get; set; } = new List<DispenseRecord>();
     }

@@ -21,7 +21,6 @@ namespace PharmTech.Models
         public virtual User? GeneratedBy { get; set; }
 
         // Patient and medicine info stored as strings for receipt permanence
-        // (so receipt stays accurate even if records change)
         [Required]
         public string PatientName { get; set; } = string.Empty;
 
@@ -37,5 +36,11 @@ namespace PharmTech.Models
         public int? LinkedRecordId { get; set; }
 
         public DateTime GeneratedAt { get; set; } = DateTime.Now;
+
+        // Facility where this receipt was generated (for security filtering)
+        public int? FacilityId { get; set; }
+
+        [ForeignKey("FacilityId")]
+        public virtual Facility? Facility { get; set; }
     }
 }
