@@ -6,78 +6,186 @@ using PharmTech.Models;
 
 namespace PharmTech.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class SupplierController(PharmTechContext context) : ControllerBase
+    public class SupplierController : Controller
     {
-        private readonly PharmTechContext _context = context;
+        private readonly PharmTechContext _context;
+        private readonly ILogger<SupplierController> _logger;
 
-        // Create supplier - Admin only
+        public SupplierController(PharmTechContext context, ILogger<SupplierController> logger)
+        {
+            _context = context;
+            _logger = logger;
+        }
+
+        // ==================== VIEWS ====================
+
+        [Authorize(Roles = "Admin,Pharmacist")]
+        public async Task<IActionResult> Index()
+        {
+            var suppliers = await _context.Suppliers
+                .OrderBy(s => s.Name)
+                .ToListAsync();
+            return View(suppliers);
+        }
+
+        [Authorize(Roles = "Admin")]
+        public IActionResult CreateSupplier()
+        {
+            return View();
+        }
+
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> EditSupplier(int id)
+        {
+            var supplier = await _context.Suppliers.FindAsync(id);
+            if (supplier == null)
+                return NotFound();
+            return View(supplier);
+        }
+
+        // ==================== API ENDPOINTS ====================
+
+        // POST: api/supplier - Create supplier (Admin only)
+        [HttpPost("api/supplier")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateSupplierApi([FromBody] Supplier supplier)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(new { success = false, message = "Invalid request data" });
+
+                _context.Suppliers.Add(supplier);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success = true, message = "Supplier created successfully", data = supplier });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating supplier");
+                return StatusCode(500, new { success = false, message = "An error occurred" });
+            }
+        }
+
+        // GET: api/supplier - Get all suppliers (Admin, Pharmacist)
+        [HttpGet("api/supplier")]
+        [Authorize(Roles = "Admin,Pharmacist")]
+        public async Task<IActionResult> GetSuppliersApi()
+        {
+            try
+            {
+                var suppliers = await _context.Suppliers
+                    .Select(s => new { s.SupplierId, s.Name, s.ContactInfo, s.Address })
+                    .OrderBy(s => s.Name)
+                    .ToListAsync();
+                return Ok(new { success = true, suppliers });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching suppliers");
+                return Ok(new { success = true, suppliers = new List<object>() });
+            }
+        }
+
+        // GET: api/supplier/{id} - Get one supplier (Admin, Pharmacist)
+        [HttpGet("api/supplier/{id}")]
+        [Authorize(Roles = "Admin,Pharmacist")]
+        public async Task<IActionResult> GetSupplierApi(int id)
+        {
+            var supplier = await _context.Suppliers.FindAsync(id);
+
+            if (supplier == null)
+                return NotFound(new { success = false, message = "Supplier not found" });
+
+            return Ok(new { success = true, supplier });
+        }
+
+        // PUT: api/supplier/{id} - Update supplier (Admin only)
+        [HttpPut("api/supplier/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateSupplierApi(int id, [FromBody] Supplier updated)
+        {
+            try
+            {
+                var supplier = await _context.Suppliers.FindAsync(id);
+
+                if (supplier == null)
+                    return NotFound(new { success = false, message = "Supplier not found" });
+
+                supplier.Name = updated.Name;
+                supplier.ContactInfo = updated.ContactInfo;
+                supplier.Address = updated.Address;
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success = true, message = "Supplier updated successfully", data = supplier });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating supplier");
+                return StatusCode(500, new { success = false, message = "An error occurred" });
+            }
+        }
+
+        // DELETE: api/supplier/{id} - Delete supplier (Admin only)
+        [HttpDelete("api/supplier/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteSupplierApi(int id)
+        {
+            try
+            {
+                var supplier = await _context.Suppliers.FindAsync(id);
+
+                if (supplier == null)
+                    return NotFound(new { success = false, message = "Supplier not found" });
+
+                // Check if supplier has any associated order requests
+                var hasOrders = await _context.OrderRequests.AnyAsync(o => o.SupplierId == id);
+                if (hasOrders)
+                {
+                    return BadRequest(new { success = false, message = "Cannot delete supplier with associated order requests" });
+                }
+
+                _context.Suppliers.Remove(supplier);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success = true, message = "Supplier deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting supplier");
+                return StatusCode(500, new { success = false, message = "An error occurred" });
+            }
+        }
+
+        // ==================== FORM POST ACTIONS ====================
+
         [HttpPost]
-        [Authorize(Roles = "Admin")] // Only Admin can create suppliers
-        public async Task<IActionResult> CreateSupplier([FromBody] Supplier supplier)
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateSupplier(Supplier supplier)
         {
-            _context.Suppliers.Add(supplier);
-            await _context.SaveChangesAsync();
-
-            return Ok(supplier);
+            if (ModelState.IsValid)
+            {
+                _context.Suppliers.Add(supplier);
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "Supplier created successfully";
+                return RedirectToAction(nameof(Index));
+            }
+            return View(supplier);
         }
 
-        // Get all suppliers - Admin and Pharmacist can view
-        [HttpGet]
-        [Authorize(Roles = "Admin,Pharmacist")]
-        public async Task<IActionResult> GetSuppliers()
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> EditSupplier(Supplier supplier)
         {
-            var suppliers = await _context.Suppliers.ToListAsync();
-            return Ok(suppliers);
-        }
-
-        // Get one supplier - Admin and Pharmacist can view
-        [HttpGet("{id}")]
-        [Authorize(Roles = "Admin,Pharmacist")]
-        public async Task<IActionResult> GetSupplier(int id)
-        {
-            var supplier = await _context.Suppliers.FindAsync(id);
-
-            if (supplier == null)
-                return NotFound();
-
-            return Ok(supplier);
-        }
-
-        // Updating supplier - Admin only
-        [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")] // Only Admin can update suppliers
-        public async Task<IActionResult> UpdateSupplier(int id, [FromBody] Supplier updated)
-        {
-            var supplier = await _context.Suppliers.FindAsync(id);
-
-            if (supplier == null)
-                return NotFound();
-
-            supplier.Name = updated.Name;
-            supplier.ContactInfo = updated.ContactInfo;
-            supplier.Address = updated.Address;
-
-            await _context.SaveChangesAsync();
-
-            return Ok(supplier);
-        }
-
-        // Deleting supplier - Admin only
-        [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")] // Only Admin can delete suppliers
-        public async Task<IActionResult> DeleteSupplier(int id)
-        {
-            var supplier = await _context.Suppliers.FindAsync(id);
-
-            if (supplier == null)
-                return NotFound();
-
-            _context.Suppliers.Remove(supplier);
-            await _context.SaveChangesAsync();
-
-            return Ok("Deleted successfully");
+            if (ModelState.IsValid)
+            {
+                _context.Suppliers.Update(supplier);
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "Supplier updated successfully";
+                return RedirectToAction(nameof(Index));
+            }
+            return View(supplier);
         }
     }
 }

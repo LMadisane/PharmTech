@@ -1,0 +1,70 @@
+﻿@{
+    ViewData["Title"] = "Suppliers";
+    var isAdmin = User.IsInRole("Admin");
+}
+
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">🚚 Suppliers</h1>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">Manage medicine suppliers</p>
+        </div>
+        @if (isAdmin)
+        {
+            <a href="/Supplier/CreateSupplier"
+                   class="bg-teal-600 hover:bg-teal-700 text-white font-semibold px-5 py-2.5 rounded-xl transition duration-200 text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Add New Supplier
+            </a>
+        }
+    </div>
+
+    <!-- Suppliers Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Contact Info</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Address</th>
+                        @if (isAdmin)
+                        {
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    @foreach (var supplier in Model)
+                    {
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                            <td class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-200">@supplier.Name</td>
+                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">@supplier.ContactInfo</td>
+                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">@supplier.Address</td>
+                            @if (isAdmin)
+                            {
+                                <td class="px-6 py-4">
+                                    <a href="/Supplier/EditSupplier/@supplier.SupplierId"
+                                           class="text-teal-600 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300 text-sm font-medium transition">
+                                        Edit
+                                    </a>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Toast for success message -->
+    @if (TempData["Success"] != null)
+    {
+        <script>
+                showToast('@TempData["Success"]', 'success');
+        </script>
+    }
+</div>
