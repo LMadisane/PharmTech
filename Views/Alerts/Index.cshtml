@@ -1,0 +1,194 @@
+﻿@{
+    ViewData["Title"] = "System Alerts";
+}
+
+<div x-data="alertsApp()" x-init="init()" class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">🔔 System Alerts</h1>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">View all system notifications and warnings</p>
+        </div>
+        <div class="flex gap-3">
+            <button @@click="markAllRead()"
+                class="bg-teal-600 hover:bg-teal-700 text-white font-semibold px-4 py-2 rounded-xl transition duration-200 text-sm">
+                Mark All Read
+            </button>
+            <button @@click="refreshAlerts()"
+                class="border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold px-4 py-2 rounded-xl transition duration-200 text-sm">
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters – Align button with dropdowns -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-6">
+        <div class="flex flex-wrap items-end gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                <select x-model="filters.type"
+                        class="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+                    <option value="">All Types</option>
+                    <option value="LowStock">📦 Low Stock</option>
+                    <option value="ExpiryWarning">⚠️ Expiry Warning</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                <select x-model="filters.status"
+                        class="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+                    <option value="">All</option>
+                    <option value="unread">Unread</option>
+                    <option value="read">Read</option>
+                </select>
+            </div>
+            <div>
+                <button @@click="applyFilters()"
+                    class="bg-teal-600 hover:bg-teal-700 text-white font-medium px-5 py-2 rounded-lg transition duration-200 text-sm">
+                    Apply Filters
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerts List -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div class="divide-y divide-gray-100 dark:divide-gray-700">
+            <template x-for="alert in filteredAlerts" :key="alert.alertId">
+                <div class="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition flex items-start justify-between"
+                     :class="!alert.isRead ? 'border-l-4 border-teal-500' : ''">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span x-show="!alert.isRead" class="w-2 h-2 bg-teal-500 rounded-full"></span>
+                            <span class="text-sm font-semibold text-gray-800 dark:text-white" x-text="alert.alertType"></span>
+                            <span class="text-xs text-gray-400 dark:text-gray-500" x-text="formatDate(alert.createdAt)"></span>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-300" x-text="alert.message"></p>
+                        <div class="flex items-center gap-4 mt-2 text-xs text-gray-400 dark:text-gray-500">
+                            <span x-show="alert.medicine" x-text="'💊 ' + alert.medicine"></span>
+                            <span x-show="alert.facility" x-text="'🏥 ' + alert.facility"></span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 ml-4">
+                        <button x-show="!alert.isRead"
+                            @@click="markAsRead(alert.alertId)"
+                                class="text-teal-600 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300 text-sm font-medium">
+                            Mark Read
+                        </button>
+                    </div>
+                </div>
+            </template>
+            <div x-show="loading && filteredAlerts.length === 0" class="text-center py-12">
+                <div class="flex justify-center">
+                    <svg class="animate-spin h-8 w-8 text-teal-500" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                </div>
+                <p class="mt-2 text-gray-400 text-sm">Loading alerts...</p>
+            </div>
+            <div x-show="!loading && filteredAlerts.length === 0" class="text-center py-12 text-gray-400 dark:text-gray-500">
+                <span class="text-4xl">✅</span>
+                <p class="mt-2">No alerts found</p>
+                <p class="text-xs mt-1">All caught up!</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+    <script>
+        function alertsApp() {
+            return {
+                alerts: [],
+                filteredAlerts: [],
+                loading: false,
+                filters: {
+                    type: '',
+                    status: ''
+                },
+
+                init() {
+                    this.loadAlerts();
+                },
+
+                async loadAlerts() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/notifications/all');
+                        const result = await response.json();
+                        this.alerts = result || [];
+                        this.applyFilters();
+                    } catch (err) {
+                        console.error('Error loading alerts:', err);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                applyFilters() {
+                    this.filteredAlerts = this.alerts.filter(a => {
+                        let match = true;
+                        if (this.filters.type && a.alertType !== this.filters.type) match = false;
+                        if (this.filters.status === 'unread' && a.isRead) match = false;
+                        if (this.filters.status === 'read' && !a.isRead) match = false;
+                        return match;
+                    });
+                },
+
+                async markAsRead(id) {
+                    try {
+                        // Optimistically update UI
+                        const alert = this.alerts.find(a => a.alertId === id);
+                        if (alert) {
+                            alert.isRead = true;
+                            // Re-apply filters to update the filtered list
+                            this.applyFilters();
+                        }
+                        // Send API request
+                        await fetch(`/api/notifications/${id}/read`, { method: 'PUT' });
+                    } catch (err) {
+                        console.error('Error marking alert as read:', err);
+                        // Revert if failed
+                        this.loadAlerts();
+                    }
+                },
+
+                async markAllRead() {
+                    try {
+                        // Optimistically mark all as read
+                        this.alerts.forEach(a => a.isRead = true);
+                        this.applyFilters();
+                        await fetch('/api/notifications/read/all', { method: 'PUT' });
+                        showToast('All alerts marked as read', 'success');
+                    } catch (err) {
+                        console.error('Error marking all as read:', err);
+                        this.loadAlerts();
+                        showToast('Failed to mark all as read', 'error');
+                    }
+                },
+
+                refreshAlerts() {
+                    this.loadAlerts();
+                },
+
+                formatDate(dateString) {
+                    if (!dateString) return 'N/A';
+                    const date = new Date(dateString);
+                    return date.toLocaleString('en-ZA', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+            }
+        }
+    </script>
+}

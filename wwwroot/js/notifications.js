@@ -1,4 +1,4 @@
-﻿// Notification bell store - shows in-app notifications
+﻿// Notification bell store shows in-app notifications
 function notificationStore() {
     return {
         showNotifications: false,
@@ -12,9 +12,9 @@ function notificationStore() {
         },
 
         // Add a new notification
-        addNotification(message) {
+        addNotification(message, id = null) {
             this.notifications.unshift({
-                id: Date.now(),
+                id: id || Date.now(),
                 message,
                 read: false
             });
@@ -27,27 +27,33 @@ function notificationStore() {
             this.unreadCount = 0;
         },
 
-        // Load notifications on init - checks for low stock warnings
+        // Navigate to full alerts page
+        goToAlerts() {
+            window.location.href = '/Alerts';
+        },
+
+        // Load notifications on init,checks for low stock warnings
         async init() {
             try {
                 const response = await fetch('/api/notifications/unread');
                 if (response.ok) {
                     const data = await response.json();
                     if (data && data.length > 0) {
-                        data.forEach(item => {
-                            this.addNotification(item.message);
+                        const limitedData = data.slice(0, 5); // Limit to 5 latest notifications for preview
+                        limitedData.forEach(item => {
+                            this.addNotification(item.message, item.alertId);
                         });
+                        this.unreadCount = data.filter(item => !item.isRead).length; // Update unread count with full data
                     }
                 }
             } catch (err) {
-                // Silently fail - API endpoint may not be ready yet
-                console.debug('Notifications not available yet');
+                console.debug('Notifications not available yet'); // Silently fail, API endpoint may not be ready yet
             }
         }
     };
 }
 
-// Toast store - shows temporary popup messages
+// Toast store, shows temporary popup messages
 function toastStore() {
     return {
         toasts: [],

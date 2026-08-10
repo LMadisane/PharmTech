@@ -20,10 +20,7 @@ namespace PharmTech.Controllers
             _logger = logger;
         }
 
-        /// <summary>
-        /// Get unread system alerts (filtered by user's facility for non-admins)
-        /// </summary>
-        [HttpGet("unread")]
+        /// Getting unread system alerts (filtered by user's facility for non-admins)
         public async Task<IActionResult> GetUnreadAlerts()
         {
             var userId = GetCurrentUserId();
@@ -56,9 +53,50 @@ namespace PharmTech.Controllers
             return Ok(alerts);
         }
 
-        /// <summary>
+        // GET: api/notifications/all
+        [HttpGet("all")]
+        public async Task<IActionResult> GetAllAlerts()
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var user = await _context.Users.FindAsync(userId);
+                var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+                var query = _context.SystemAlerts
+                    .Include(a => a.Medicine)
+                    .Include(a => a.Facility)
+                    .AsQueryable();
+
+                if (userRole != "Admin" && user != null && user.FacilityId.HasValue)
+                {
+                    query = query.Where(a => a.FacilityId == user.FacilityId.Value);
+                }
+
+                var alerts = await query
+                    .OrderByDescending(a => a.CreatedAt)
+                    .Select(a => new
+                    {
+                        a.AlertId,
+                        a.AlertType,
+                        a.Message,
+                        a.IsRead,
+                        a.CreatedAt,
+                        medicine = a.Medicine != null ? a.Medicine.Name : null,
+                        facility = a.Facility != null ? a.Facility.Name : null
+                    })
+                    .ToListAsync();
+
+                return Ok(alerts);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching all alerts");
+                return Ok(new List<object>());
+            }
+        }
+
         /// Get only low stock alerts
-        /// </summary>
         [HttpGet("lowstock")]
         public async Task<IActionResult> GetLowStockAlerts()
         {
@@ -91,10 +129,7 @@ namespace PharmTech.Controllers
             return Ok(alerts);
         }
 
-        /// <summary>
         /// Mark a single alert as read
-        /// </summary>
-        [HttpPut("{id}/read")]
         public async Task<IActionResult> MarkAsRead(int id)
         {
             var alert = await _context.SystemAlerts.FindAsync(id);
@@ -106,9 +141,7 @@ namespace PharmTech.Controllers
             return Ok(new { message = "Alert marked as read" });
         }
 
-        /// <summary>
         /// Mark all (visible) alerts as read for the current user/facility
-        /// </summary>
         [HttpPut("read/all")]
         public async Task<IActionResult> MarkAllAsRead()
         {

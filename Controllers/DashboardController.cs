@@ -24,7 +24,7 @@ namespace PharmTech.Controllers
             ViewBag.DispensedPrescriptions = await _context.Prescriptions.CountAsync(p => p.Status == "Dispensed");
             ViewBag.PendingPrescriptions = await _context.Prescriptions.CountAsync(p => p.Status == "Pending");
 
-            // Stock levels for bar chart - top 10 medicines by quantity
+            // Stock levels for bar chart, top 10 medicines by quantity
             var stockData = await _context.InventoryItems
                 .Include(i => i.Medicine)
                 .Where(i => i.Medicine != null)

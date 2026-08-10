@@ -12,7 +12,7 @@ namespace PharmTech.Models.DTOs
         [EmailAddress(ErrorMessage = "Invalid email address")]
         public string Email { get; set; } = string.Empty;
 
-        // Password is required for Doctors and Pharmacists, but not for Patients
+        // Password is required for Doctors and Pharmacists
         public string? Password { get; set; } = string.Empty;
 
         [Required]

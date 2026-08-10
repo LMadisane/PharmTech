@@ -27,7 +27,7 @@ builder.Services.AddAuthentication("Cookies")
         options.AccessDeniedPath = "/account/accessdenied";
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 
-        // ADD THIS - Prevent redirect to login page for API requests
+        // Prevent redirect to login page for API requests
         options.Events.OnRedirectToLogin = context =>
         {
             // If the request is to an API endpoint, return 401 Unauthorized
@@ -49,7 +49,7 @@ builder.Services.AddAntiforgery(options =>
     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; //Fixes the http/https mismatch
 });
 
-// Authorization - (Role-based)
+// Authorization (Role-based)
 builder.Services.AddAuthorization();
 
 // Login session (used in your login system)
@@ -109,12 +109,18 @@ app.UseAuthentication();
 // User Authorization
 app.UseAuthorization();
 
-// ========== Routes ===========
+// ========== ROUTES ===========
 
 // Login route (Default)
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Account}/{action=Login}/{id?}");
+
+// Alerts
+app.MapControllerRoute(
+    name: "alerts",
+    pattern: "alerts/{action=Index}/{id?}",
+    defaults: new { controller = "Alerts" });
 
 // Audit Logs
 app.MapControllerRoute(
@@ -162,7 +168,7 @@ app.MapControllerRoute(
 app.MapControllerRoute(
     name: "orders",
     pattern: "orders/{action=Index}/{id?}",
-    defaults: new { controller = "OrderRequestView" });
+    defaults: new { controller = "OrderRequest" });
 
 // Prescriptions
 app.MapControllerRoute(
