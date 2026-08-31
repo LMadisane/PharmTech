@@ -9,7 +9,7 @@ using System.Text;
 
 namespace PharmTech.Controllers
 {
-    [Route("account")]
+    [Route("account")] // Default
     public class AccountController(PharmTechContext context) : Controller
     {
         private readonly PharmTechContext _context = context;

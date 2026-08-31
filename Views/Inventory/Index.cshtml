@@ -9,8 +9,9 @@
     <div class="mb-6 flex justify-between items-center">
         <div>
             <h1 class="text-2xl font-bold text-gray-800 dark:text-white">📦 Inventory Management</h1>
-            <p class="text-gray-500 dark:text-gray-400 text-sm">View stock levels and batches across all facilities</p>
+            <p class="text-gray-700 dark:text-gray-400 text-sm">View stock levels and batches across all facilities</p>
         </div>
+
         @if (isPharmacist)
         {
             <a href="/Inventory/AddStock"
@@ -28,7 +29,7 @@
         <ul class="flex flex-wrap -mb-px text-sm font-medium text-center">
             <li class="mr-2">
                 <button @@click="activeTab = 'summary'"
-                    :class="activeTab === 'summary' ? 'border-teal-600 text-teal-600 dark:border-teal-400 dark:text-teal-400' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-400'"
+                    :class="activeTab === 'summary' ? 'border-teal-600 text-teal-700 dark:border-teal-400 dark:text-teal-400' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-400'"
                     class="inline-block p-4 border-b-2 rounded-t-lg transition">
                     📊 Stock Summary
                 </button>

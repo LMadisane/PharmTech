@@ -1,10 +1,10 @@
 ﻿// auth.js - Handles session timeout warnings and role-based UI visibility
 
-// Session timeout warning - warns user 2 minutes before session expires
+// Session timeout warning, warns user 2 minutes before session expires
 function sessionTimer() {
     return {
         warningVisible: false,
-        // Session is set to 1 hour in Program.cs - warn at 58 minutes
+        // Session is set to 1 hour in Program.cs, warn at 58 minutes
         timeoutDuration: 58 * 60 * 1000,
         timer: null,
 
@@ -21,7 +21,7 @@ function sessionTimer() {
             clearTimeout(this.timer);
             this.warningVisible = false;
             this.timer = setTimeout(() => {
-                // Show warning - session about to expire
+                // Show warning, session about to expire
                 this.warningVisible = true;
             }, this.timeoutDuration);
         },

@@ -2,8 +2,7 @@
     ViewData["Title"] = "Add Stock";
 }
 
-<!--
-    Add Stock Page - Pharmacists use this to add new medicine batches to inventory
+<!-- Only Pharmacists can use this to add new medicine batches to inventory
     Each batch has a lot number, quantity, and expiry date for FIFO tracking
 -->
 
@@ -18,7 +17,7 @@
             </a>
             <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Add Stock</h1>
         </div>
-        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Add a new batch of medicine to inventory</p>
+        <p class="text-gray-700 dark:text-gray-400 text-sm mt-1">Add a new batch of medicine to inventory</p>
     </div>
 
     <!-- Form Card -->
@@ -91,7 +90,7 @@
                 <!-- Submit Button -->
                 <button type="submit"
                         :disabled="submitting"
-                        class="flex-1 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-semibold py-3 rounded-xl transition">
+                        class="flex-1 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-600 text-white font-semibold py-3 rounded-xl transition">
                     <span x-show="!submitting">Add Stock</span>
                     <span x-show="submitting" class="flex items-center justify-center gap-2">
                         <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">

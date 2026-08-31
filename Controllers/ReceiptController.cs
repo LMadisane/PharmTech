@@ -27,12 +27,12 @@ namespace PharmTech.Controllers
 
         [HttpGet("api/receipt")]
         public async Task<IActionResult> GetReceipts(
-    [FromQuery] string? patientName,
-    [FromQuery] string? medicineName,
-    [FromQuery] string? receiptType,
-    [FromQuery] DateTime? from,
-    [FromQuery] DateTime? to)
-        {
+        [FromQuery] string? patientName,
+        [FromQuery] string? medicineName,
+        [FromQuery] string? receiptType,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to)
+            {
             try
             {
                 // Get current user's facility

@@ -11,7 +11,7 @@
             </a>
             <h1 class="text-2xl font-bold text-gray-800 dark:text-white">New Prescription</h1>
         </div>
-        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Create a new prescription for a patient</p>
+        <p class="text-gray-700 dark:text-gray-400 text-sm mt-1">Create a new prescription for a patient</p>
     </div>
 
     <!-- Form Card -->
@@ -88,11 +88,13 @@
             <!-- Summary Card -->
             <div x-show="form.dosagePerDay && form.durationDays" class="bg-teal-50 dark:bg-teal-900/30 rounded-xl p-4 mb-6">
                 <h4 class="text-sm font-semibold text-teal-800 dark:text-teal-300 mb-2">Summary</h4>
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-teal-700 dark:text-teal-400">Total Quantity Required:</span>
-                    <span class="text-xl font-bold text-teal-800 dark:text-teal-300" x-text="form.dosagePerDay * form.durationDays"></span>
+                <div class="text-center">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm text-teal-700 dark:text-teal-400">Total Quantity Required:</span>
+                        <span class="text-xl font-bold text-teal-800 dark:text-teal-300" x-text="form.dosagePerDay * form.durationDays"></span>
+                    </div>
+                    <p class="text-xs text-teal-800 dark:text-teal-300 text-right">units</p>
                 </div>
-                <p class="text-xs text-teal-600 dark:text-teal-400 mt-1">units</p>
             </div>
 
             <!-- Error Message -->
@@ -102,7 +104,7 @@
             <div class="flex gap-3">
                 <button type="submit"
                         :disabled="submitting || !form.patientId || !form.medId || !form.dosagePerDay || !form.durationDays"
-                        class="flex-1 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-semibold px-6 py-3 rounded-xl transition duration-200">
+                        class="flex-1 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-600 text-white font-semibold px-6 py-3 rounded-xl transition duration-200">
                     <span x-show="!submitting">Create Prescription</span>
                     <span x-show="submitting" class="flex items-center justify-center gap-2">
                         <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -138,7 +140,7 @@
                     <p class="font-mono text-sm text-teal-600 dark:text-teal-400" x-text="createdReferenceCode"></p>
                 </div>
                 <div class="flex gap-3">
-                    <button @@click="resetForm()" class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-semibold px-4 py-2 rounded-xl transition">
+                    <button @@click="resetForm()" class="flex-1 bg-teal-700 hover:bg-teal-700 text-white font-semibold px-4 py-2 rounded-xl transition">
                         Create Another
                     </button>
                     <a asp-controller="Prescription" asp-action="Index" class="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold px-4 py-2 rounded-xl transition text-center">

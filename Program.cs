@@ -49,10 +49,10 @@ builder.Services.AddAntiforgery(options =>
     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; //Fixes the http/https mismatch
 });
 
-// Authorization (Role-based)
+// Authorization (Role based)
 builder.Services.AddAuthorization();
 
-// Login session (used in your login system)
+// Login session (used in login system)
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {

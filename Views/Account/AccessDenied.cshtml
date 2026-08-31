@@ -1,6 +1,6 @@
 ﻿@{
     ViewData["Title"] = "Access Denied";
-    Layout = null; // Standalone page, no sidebar needed
+    Layout = null;
 }
 
 <!DOCTYPE html>
@@ -12,11 +12,34 @@
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+            body {
+                background: linear-gradient(145deg, #f0fdfa 0%, #ccfbf1 35%, #e0e7ff 70%, #ffffff 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0;
+                padding: 1rem;
+            }
+
+            .glass-card {
+                background: rgba(255, 255, 255, 0.15);
+                backdrop-filter: blur(16px) saturate(180%);
+                -webkit-backdrop-filter: blur(16px) saturate(180%);
+                border: 1px solid rgba(255, 255, 255, 0.25);
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+                border-radius: 32px;
+                padding: 2.5rem;
+                max-width: 420px;
+                width: 100%;
+                text-align: center;
+            }
+    </style>
 </head>
-<body class="bg-gradient-to-br from-blue-900 to-blue-700 min-h-screen flex items-center justify-center">
-
-    <div class="bg-white rounded-2xl shadow-2xl p-10 max-w-md w-full text-center">
-
+<body>
+    <div class="glass-card">
         <!-- Icon -->
         <div class="text-6xl mb-4">🚫</div>
 
@@ -24,26 +47,24 @@
         <h1 class="text-2xl font-bold text-red-600 mb-2">Access Denied</h1>
 
         <!-- Message -->
-        <p class="text-gray-500 text-sm mb-6">
+        <p class="text-gray-600 dark:text-gray-300 text-sm mb-6">
             You do not have permission to view this page.
             Please contact your administrator if you believe this is a mistake.
         </p>
 
         <!-- Back to Dashboard -->
         <a href="/Dashboard"
-               class="inline-block bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition">
-            ← Back to Dashboard
+           class="inline-block bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition">
+           Back to Dashboard
         </a>
 
         <!-- Logout -->
         <div class="mt-4">
             <a href="/account/logout"
-                   class="text-sm text-red-400 hover:underline">
+               class="text-sm text-red-400 hover:underline">
                 Logout
             </a>
         </div>
-
     </div>
-
 </body>
 </html>

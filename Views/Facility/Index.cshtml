@@ -7,10 +7,10 @@
     <div class="mb-6 flex justify-between items-center">
         <div>
             <h1 class="text-2xl font-bold text-gray-800 dark:text-white">🏥 Medical Facilities</h1>
-            <p class="text-gray-500 dark:text-gray-400 text-sm">Manage healthcare facilities</p>
+            <p class="text-gray-700 dark:text-gray-400 text-sm">Manage healthcare facilities</p>
         </div>
         <a href="/Facility/CreateFacility"
-               class="bg-teal-600 hover:bg-teal-700 text-white font-semibold px-5 py-2.5 rounded-xl transition duration-200 text-sm flex items-center gap-2">
+           class="bg-teal-600 hover:bg-teal-700 text-white font-semibold px-5 py-2.5 rounded-xl transition duration-200 text-sm flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
@@ -18,11 +18,43 @@
         </a>
     </div>
 
+    <!-- Search Bar -->
+    <div class="glass p-4 mb-6 transition-all duration-300">
+        <div class="flex gap-3 flex-wrap sm:flex-nowrap">
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    Search Facilities
+                </label>
+                <div class="glass-search w-full">
+                    <svg class="search-icon w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input type="text"
+                           x-model="searchTerm"
+                    @@input="filterFacilities()"
+                           placeholder="Search by facility name..."
+                           class="w-full px-4 py-2 bg-transparent border-0 focus:ring-0 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-sm">
+                </div>
+            </div>
+            <div class="flex items-end">
+                <button @@click="clearSearch()"
+                    x-show="searchTerm"
+                    class="glass-filter">
+                    ✕ Clear
+                </button>
+            </div>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-3"
+           x-show="filteredFacilities.length !== facilities.length">
+            Showing <span x-text="filteredFacilities.length"></span> of <span x-text="facilities.length"></span> facilities
+        </p>
+    </div>
+    
     <!-- Facilities Table -->
-    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+    <div class="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-white/30 dark:border-gray-700/30 overflow-hidden shadow-sm">
         <div class="overflow-x-auto">
             <table class="w-full">
-                <thead class="bg-gray-50 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                <thead class="bg-gray-50/50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Address</th>
@@ -31,14 +63,14 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                    <template x-for="facility in facilities" :key="facility.facilityId">
-                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                    <template x-for="facility in filteredFacilities" :key="facility.facilityId">
+                        <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition">
                             <td class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-200" x-text="facility.name"></td>
                             <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="facility.address || 'N/A'"></td>
                             <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="facility.contactInfo || 'N/A'"></td>
                             <td class="px-6 py-4">
                                 <a :href="'/Facility/EditFacility/' + facility.facilityId"
-                                       class="text-teal-600 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300 text-sm font-medium mr-3 transition">
+                                   class="text-teal-600 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300 text-sm font-medium mr-3 transition">
                                     Edit
                                 </a>
                                 <button @@click="deleteFacility(facility.facilityId, facility.name)"
@@ -59,14 +91,15 @@
                             <p class="mt-2 text-gray-400 text-sm">Loading facilities...</p>
                         </td>
                     </tr>
-                    <tr x-show="!loading && facilities.length === 0">
+                    <tr x-show="!loading && filteredFacilities.length === 0">
                         <td colspan="4" class="px-6 py-12 text-center">
                             <div class="text-gray-400">
                                 <span class="text-4xl">📭</span>
-                                <p class="mt-2">No facilities found</p>
-                                <p class="text-xs mt-1">Click "Add New Facility" to create one</p>
+                                <p class="mt-2" x-show="facilities.length === 0">No facilities found</p>
+                                <p class="mt-2" x-show="facilities.length > 0">No facilities match your search</p>
+                                <p class="text-xs mt-1" x-show="facilities.length === 0">Click "Add New Facility" to create one</p>
                             </div>
-                        </table>
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -84,6 +117,8 @@
         function facilityApp() {
             return {
                 facilities: [],
+                filteredFacilities: [],
+                searchTerm: '',
                 loading: false,
 
                 init() {
@@ -95,23 +130,42 @@
                     try {
                         const response = await fetch('/api/facility');
                         const result = await response.json();
-                        
+
                         if (result && result.success) {
                             this.facilities = result.facilities || [];
+                            this.filteredFacilities = this.facilities;
                         } else {
                             this.facilities = [];
+                            this.filteredFacilities = [];
                         }
                     } catch (err) {
                         console.error('Error loading facilities:', err);
                         this.facilities = [];
+                        this.filteredFacilities = [];
                     } finally {
                         this.loading = false;
                     }
                 },
 
+                filterFacilities() {
+                    if (!this.searchTerm) {
+                        this.filteredFacilities = this.facilities;
+                        return;
+                    }
+                    const term = this.searchTerm.toLowerCase();
+                    this.filteredFacilities = this.facilities.filter(facility =>
+                        facility.name.toLowerCase().includes(term)
+                    );
+                },
+
+                clearSearch() {
+                    this.searchTerm = '';
+                    this.filteredFacilities = this.facilities;
+                },
+
                 async deleteFacility(id, name) {
                     if (!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) return;
-                    
+
                     try {
                         const response = await fetch(`/api/facility/${id}`, {
                             method: 'DELETE',

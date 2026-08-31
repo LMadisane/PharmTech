@@ -20,3 +20,38 @@ html {
 body {
   margin-bottom: 60px;
 }
+
+/* Light mode Glassmorphism*/
+.glass {
+    background: rgba(255, 255, 255, 0.12); /* semi‑transparent */
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    border-radius: 24px; /* matching the rounded‑2xl */
+}
+
+/* Dark mode version */
+.dark .glass {
+    background: rgba(17, 24, 39, 0.4); /* dark glass */
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Sidebar with teal tint*/
+.sidebar-glass {
+    /* Light mode: teal-tinted glass */
+    background: rgba(20, 184, 166, 0.25);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(20, 184, 166, 0.25);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    border-radius: 24px;
+}
+
+/* Dark mode: darker teal tint */
+.dark .sidebar-glass {
+    background: rgba(20, 184, 166, 0.2);
+    border-color: rgba(20, 184, 166, 0.15);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}

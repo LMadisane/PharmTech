@@ -26,46 +26,53 @@
 
     
     <style>
-        /* Alpine.js Cloak - prevents flashing */
-        [x-cloak] {
-            display: none !important;
-        }
+    /* Alpine.js Cloak - prevents flashing */
+    [x-cloak] {
+        display: none !important;
+    }
+
+    /* Prevent page scroll, only allow scrolling inside main card */
+    html, body {
+        overflow: hidden !important;
+        height: 100%;
+    }
+
+    /* Background (Light Mode) */
+    body {
+        background: 
+            linear-gradient(rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.25)), url('/images/liquid-teal-glass.jpg') center/cover no-repeat;
+        padding-bottom: 0px;
+    }
+
+    /* Background (Dark Mode) */
+    .dark body {
+        background: 
+            linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.85)), url('/images/liquid-teal-glass.jpg') center/cover no-repeat;
+    }
+
+    /* Dark mode sidebar header - teal to gray gradient */
+    .dark .sidebar-header-gradient {
+        background: linear-gradient(135deg, rgba(156, 163, 175, 0.15) 0%, rgba(17, 24, 39, 1) 100%);
+    }
+
+    /* Light mode Header and Logout gradients */
+    .header-gradient,
+    .logout-gradient {
+        background: linear-gradient(315deg, rgba(20, 184, 166, 0.35) 0%, rgba(255, 255, 255, 0.8) 100%);
+    }
     
-        /* Prevent page scroll, only allow scrolling inside main card */
-        html, body {
-            overflow: hidden !important;
-            height: 100%;
-        }
-        
-        /* Light mode, teal to white gradient for background */
+    /* Dark mode gradients for header and logout */
+    .dark .header-gradient,
+    .dark .logout-gradient {
+        background: linear-gradient(135deg, rgba(156, 163, 175, 0.15) 0%, rgba(17, 24, 39, 1) 100%);
+    }
+
+    @@media (max-width: 768px) {
         body {
-            background: linear-gradient(135deg, rgba(20, 184, 166, 0.3) 0%, rgba(255, 255, 255, 1) 100%);
             padding-bottom: 0px;
         }
-        
-        /* Dark mode, dark gray to teal gradient */
-        .dark body {
-        background: linear-gradient(135deg, rgba(156, 163, 175, 0.5) 0%, rgba(17, 24, 39, 1) 100%);
-        }
-
-        /* Light mode gradients for header and logout */
-        .header-gradient,
-        .logout-gradient {
-        background: linear-gradient(315deg, rgba(20, 184, 166, 0.35) 0%, rgba(255, 255, 255, 1) 100%);
-        }
-
-        /* Dark mode gradients for header and logout */
-        .dark .header-gradient,
-        .dark .logout-gradient {
-            background: linear-gradient(135deg, rgba(156, 163, 175, 0.35) 0%, rgba(17, 24, 39, 1) 100%);
-        }
-
-        @@media (max-width: 768px) {
-            body {
-                padding-bottom: 0px;
-            }
-        }
-    </style>
+    }
+</style>
 
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -105,21 +112,19 @@
         <div class="flex-1 flex flex-col mx-auto w-full px-4 md:px-6 gap-6 overflow-hidden">
             <!-- Sidebar: fixed position, doesn't move on scroll -->
             <aside :class="sidebarOpen ? 'w-64' : 'w-20'"
-                   class="fixed top-6 left-4 md:left-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg transition-all duration-300 ease-in-out overflow-y-auto h-[calc(100vh-3rem)] flex flex-col z-30">
+                   class="fixed top-6 left-4 md:left-6 sidebar-glass shadow-xl transition-all duration-300 ease-in-out overflow-y-auto overflow-x-hidden h-[calc(100vh-3rem)] flex flex-col z-30">
                 
-                <div class="flex items-center px-4 py-5 border-b border-gray-100 dark:border-gray-700">
+                <div class="sidebar-header-gradient flex items-center px-4 py-5 border-b border-gray-100 dark:border-gray-700">
                     <div x-show="sidebarOpen" class="flex items-center gap-3">
                         <span class="text-3xl">💊</span>
                         <span class="text-xl font-bold tracking-wide text-gray-800 dark:text-white">PharmTech</span>
                     </div>
                     <div class="flex items-center justify-center w-full" :class="sidebarOpen ? '' : 'justify-center'">
                         <button @@click="toggleSidebar()"
-                            class="text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 focus:outline-none transition"
+                            class="text-gray-800 hover:text-gray-100 dark:text-gray-100 dark:hover:text-teal-700 focus:outline-none transition"
                             :class="sidebarOpen ? 'ml-auto' : ''">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
-                                 viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                      d="M4 6h16M4 12h16M4 18h16" />
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
                         </button>
                     </div>
@@ -134,37 +139,31 @@
                         if (string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase) &&
                             string.Equals(currentAction, action, StringComparison.OrdinalIgnoreCase))
                         {
-                            return "bg-teal-600 text-white font-medium shadow-md";
+                            return "bg-teal-700 text-white font-medium shadow-md";
                         }
                         return "text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700";
                     }
                 }
 
-                <nav class="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
+                <nav class="flex-1 px-2 py-4 space-y-1 overflow-y-auto scrollbar-hide">
                     <!-- Dashboard -->
                     <a asp-controller="Dashboard" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition group relative @GetActiveClass("Dashboard")">
+                       class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition @GetActiveClass("Dashboard")">
                         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                         </svg>
                         <span x-show="sidebarOpen" class="whitespace-nowrap">Dashboard</span>
-                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                            Dashboard
-                        </span>
                     </a>
 
                     <!-- Audit Logs - Admin only -->
                     @if (User.IsInRole("Admin"))
                     {
                         <a asp-controller="AuditLogs" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition group relative">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition @GetActiveClass("AuditLogs")">
                             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                             <span x-show="sidebarOpen" class="whitespace-nowrap">Audit Logs</span>
-                            <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                                Audit Logs
-                            </span>
                         </a>
                     }
 
@@ -172,14 +171,11 @@
                     @if (User.IsInRole("Pharmacist"))
                     {
                         <a asp-controller="Dispensing" asp-action="Index"
-                               class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition group relative @GetActiveClass("Dispensing")">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition @GetActiveClass("Dispensing")">
                             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                             </svg>
                             <span x-show="sidebarOpen" class="whitespace-nowrap">Dispensing</span>
-                            <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                                Dispensing
-                            </span>
                         </a>
                     }
 
@@ -187,14 +183,11 @@
                     @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
                     {
                         <a asp-controller="DrugReturns" asp-action="Index"
-                               class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition group relative @GetActiveClass("DrugReturns")">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition @GetActiveClass("DrugReturns")">
                             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                             </svg>
                             <span x-show="sidebarOpen" class="whitespace-nowrap">Drug Returns</span>
-                            <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                                Drug Returns
-                            </span>
                         </a>
                     }
 
@@ -202,14 +195,11 @@
                     @if (User.IsInRole("Admin"))
                     {
                         <a asp-controller="Facility" asp-action="Index"
-                               class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition group relative @GetActiveClass("Facility")">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition @GetActiveClass("Facility")">
                             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
                             <span x-show="sidebarOpen" class="whitespace-nowrap">Facilities</span>
-                            <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                                Facilities
-                            </span>
                         </a>
                     }
 
@@ -217,14 +207,11 @@
                     @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist") || User.IsInRole("Doctor"))
                     {
                         <a asp-controller="Inventory" asp-action="Index"
-                               class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition group relative @GetActiveClass("Inventory")">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition @GetActiveClass("Inventory")">
                             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                             </svg>
                             <span x-show="sidebarOpen" class="whitespace-nowrap">Inventory</span>
-                            <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                                Inventory
-                            </span>
                         </a>
                     }
 
@@ -232,15 +219,12 @@
                     @if (User.IsInRole("Admin"))
                     {
                         <a asp-controller="Medicine" asp-action="Index"
-                               class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition group relative @GetActiveClass("Medicine")">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition @GetActiveClass("Medicine")">
                             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2v4M8 6h8M12 22v-4m-4 2h8" />
                                 <circle cx="12" cy="14" r="4" />
                             </svg>
                             <span x-show="sidebarOpen" class="whitespace-nowrap">Medicines</span>
-                            <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                                Medicines
-                            </span>
                         </a>
                     }
 
@@ -248,14 +232,11 @@
                     @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
                     {
                         <a asp-controller="OrderRequest" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition group relative">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition @GetActiveClass("OrderRequest")">
                             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                             </svg>
                             <span x-show="sidebarOpen" class="whitespace-nowrap">Order Requests</span>
-                            <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                                Order Requests
-                            </span>
                         </a>
                     }
 
@@ -263,41 +244,32 @@
                     @if (User.IsInRole("Admin") || User.IsInRole("Doctor") || User.IsInRole("Pharmacist"))
                     {
                         <a asp-controller="Prescription" asp-action="Index"
-                               class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition group relative @GetActiveClass("Prescription")">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition @GetActiveClass("Prescription")">
                             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                             <span x-show="sidebarOpen" class="whitespace-nowrap">Prescriptions</span>
-                            <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                                Prescriptions
-                            </span>
                         </a>
                     }
 
                     <!-- Receipts -->
                     <a asp-controller="Receipt" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition group relative @GetActiveClass("Receipt")">
+                       class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition @GetActiveClass("Receipt")">
                         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                         </svg>
                         <span x-show="sidebarOpen" class="whitespace-nowrap">Receipts</span>
-                        <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                            Receipts
-                        </span>
                     </a>
 
                     <!-- Suppliers - Admin, Pharmacist -->
                     @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
                     {
                         <a asp-controller="Supplier" asp-action="Index"
-                               class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition group relative @GetActiveClass("Supplier")">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition @GetActiveClass("Supplier")">
                             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-1.5 6M17 13l1.5 6M9 21h6M12 21v-8" />
                             </svg>
                             <span x-show="sidebarOpen" class="whitespace-nowrap">Suppliers</span>
-                            <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                                Suppliers
-                            </span>
                         </a>
                     }
 
@@ -305,22 +277,19 @@
                     @if (User.IsInRole("Admin"))
                     {
                         <a asp-controller="UserManagement" asp-action="Index"
-                               class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition group relative @GetActiveClass("UserManagement")">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition @GetActiveClass("UserManagement")">
                             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                             </svg>
                             <span x-show="sidebarOpen" class="whitespace-nowrap">User Management</span>
-                            <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
-                                User Management
-                            </span>
                         </a>
                     }
                 </nav>
 
                 <!-- Logout (inside sidebar card) -->
-                <div class="px-2 py-4 border-t border-gray-100 dark:border-gray-700 logout-gradient">
+                <div class="px-2 py-4 border-t border-gray-100 dark:border-gray-900 logout-gradient">
                     <a asp-controller="Account" asp-action="Logout"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-red-600 dark:hover:text-red-400 transition group relative">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-red-600 dark:hover:text-red-400 transition group relative">
                         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
@@ -337,7 +306,7 @@
                  x-bind:style="'width: calc(100% - ' + (sidebarOpen ? '18rem' : '7rem') + ');'">
     
                 <!-- Main Content Card -->
-                <main class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden flex flex-col" style="height: calc(100vh - 3rem);">
+                <main class="glass shadow-xl overflow-hidden flex flex-col" style="height: calc(100vh - 3rem);">
                     <!-- Header (fixed at top of card) -->
                     <header class="shrink-0 px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between header-gradient">
                         <h1 class="text-xl font-semibold text-gray-800 dark:text-white">
@@ -346,7 +315,7 @@
 
                         <div class="flex items-center gap-4">
                             <!-- Dark Mode Toggle -->
-                            <button @@click="toggleDarkMode()" class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                            <button @@click ="toggleDarkMode()" class="p-2 rounded-lg text-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition">
                                 <svg x-show="!darkMode" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                                 </svg>
@@ -358,7 +327,7 @@
                             <!-- Notification Bell -->
                             <div class="relative" x-data="notificationStore()">
                                 <button @@click="toggleNotifications()"
-                                    class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition relative">
+                                    class="p-2 rounded-lg text-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition relative">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                                     </svg>
@@ -395,12 +364,15 @@
                                             Showing latest 5 of <span x-text="notifications.length"></span>
                                         </li>
                                     </ul>
-                                    <!-- View All link -->
-                                    <div class="px-4 py-2 border-t border-gray-100 dark:border-gray-700">
-                                        <a href="/Alerts" class="block text-center text-sm text-teal-600 dark:text-teal-400 hover:underline font-medium">
-                                            View All Notifications →
-                                        </a>
-                                    </div>
+                                    <!-- View All link - Only for Admins -->
+                                    @if (User.IsInRole("Admin"))
+                                    {
+                                        <div class="px-4 py-2 border-t border-gray-100 dark:border-gray-700">
+                                            <a href="/Alerts" class="block text-center text-sm text-teal-600 dark:text-teal-400 hover:underline font-medium">
+                                                View All Notifications →
+                                            </a>
+                                        </div>
+                                    }
                                 </div>
                             </div>
 
@@ -408,14 +380,14 @@
                             <div class="relative" x-data="{ showUserMenu: false }">
                                 <button @@click="showUserMenu = !showUserMenu"
                                     class="flex items-center gap-2 focus:outline-none group">
-                                    <div class="w-9 h-9 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-bold shadow-sm group-hover:bg-teal-700 transition">
+                                    <div class="w-9 h-9 rounded-full bg-teal-700 text-white flex items-center justify-center text-sm font-bold shadow-sm group-hover:bg-teal-700 transition">
                                         @User.Identity?.Name?.Substring(0, 1).ToUpper()
                                     </div>
                                     <div class="text-sm text-left hidden sm:block">
-                                        <div class="font-medium text-gray-700 dark:text-gray-200 transition-colors duration-300">
+                                        <div class="font-medium text-gray-800 dark:text-gray-200 transition-colors duration-300">
                                             @User.Identity?.Name
                                         </div>
-                                        <div class="text-xs text-teal-600 font-medium">
+                                        <div class="text-xs text-teal-700 font-medium">
                                             @(User.IsInRole("Admin") ? "Administrator" : User.IsInRole("Doctor") ? "Doctor" : "Pharmacist")
                                         </div>
                                     </div>

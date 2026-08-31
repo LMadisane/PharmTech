@@ -47,7 +47,7 @@ function notificationStore() {
                     }
                 }
             } catch (err) {
-                console.debug('Notifications not available yet'); // Silently fail, API endpoint may not be ready yet
+                console.debug('Notifications not available yet'); // Silently fail if API endpoint may not be ready yet
             }
         }
     };
