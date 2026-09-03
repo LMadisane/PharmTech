@@ -20,7 +20,7 @@ namespace PharmTech.Controllers
             _logger = logger;
         }
 
-        // ==================== VIEWS ====================
+        // ======= VIEWS
 
         public IActionResult Index()
         {
@@ -34,9 +34,9 @@ namespace PharmTech.Controllers
             return View();
         }
 
-        // ==================== API ENDPOINTS ====================
+        // ======= API ENDPOINTS
 
-        // GET: api/drugreturns
+        // Getting all returns with optional filtering based on user role and facility
         [HttpGet("api/drugreturns")]
         public async Task<IActionResult> GetAllReturns()
         {
@@ -82,7 +82,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // GET: api/drugreturns/{id}
+        // Geting a specific return by ID
         [HttpGet("api/drugreturns/{id}")]
         public async Task<IActionResult> GetReturn(int id)
         {
@@ -97,7 +97,7 @@ namespace PharmTech.Controllers
             return Ok(new { success = true, data = result });
         }
 
-        // POST: api/drugreturns
+        // Create a return request only if it's still pending
         [HttpPost("api/drugreturns")]
         public async Task<IActionResult> CreateReturnRequest([FromBody] CreateDrugReturnDto dto)
         {
@@ -149,7 +149,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // PUT: api/drugreturns/{id}/approve
+        // Putting a return request to approved status and optionally restocking the medicine
         [HttpPut("api/drugreturns/{id}/approve")]
         public async Task<IActionResult> ApproveReturn(int id, [FromQuery] int processedById)
         {
@@ -228,7 +228,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // PUT: api/drugreturns/{id}/reject
+        // Updating a return request to rejected status
         [HttpPut("api/drugreturns/{id}/reject")]
         public async Task<IActionResult> RejectReturn(int id, [FromQuery] int processedById)
         {
@@ -266,7 +266,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // POST: api/drugreturns/recall
+        // Creating a recall for a specific lot number, marking all batches with that lot number as recalled and reducing inventory accordingly
         [HttpPost("api/drugreturns/recall")]
         public async Task<IActionResult> RecallDrug([FromQuery] string lotNumber)
         {

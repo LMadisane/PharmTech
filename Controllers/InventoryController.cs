@@ -20,7 +20,7 @@ namespace PharmTech.Controllers
             _logger = logger;
         }
 
-        // ==================== VIEWS ====================
+        // ========= VIEWS
 
         public IActionResult Index()
         {
@@ -40,7 +40,7 @@ namespace PharmTech.Controllers
             return View();
         }
 
-        // ==================== API ENDPOINTS ====================
+        // ========= API ENDPOINTS
 
         [HttpGet("api/inventory")]
         public async Task<IActionResult> GetInventory()
@@ -49,7 +49,9 @@ namespace PharmTech.Controllers
             {
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 var user = await _context.Users.FindAsync(userId);
+                var today = DateTime.Today;
 
+                // Get all medicines and facilities, but filter by user facility if not admin
                 var query = _context.InventoryItems
                     .Include(i => i.Medicine)
                     .Include(i => i.Facility)
@@ -58,25 +60,27 @@ namespace PharmTech.Controllers
                 if (!User.IsInRole("Admin"))
                 {
                     if (user != null && user.FacilityId.HasValue)
-                    {
                         query = query.Where(i => i.FacilityId == user.FacilityId.Value);
-                    }
                     else
-                    {
                         return Ok(new { success = true, inventory = new List<object>() });
-                    }
                 }
 
+                // For each inventory item, compute available stock from non-expired batches
                 var inventory = await query
                     .Select(i => new
                     {
                         i.InventoryId,
                         medicineId = i.Medicine != null ? i.Medicine.MedId : 0,
                         medicineName = i.Medicine != null ? i.Medicine.Name : "Unknown",
-                        i.Quantity,
                         facilityId = i.Facility != null ? i.Facility.FacilityId : 0,
                         facilityName = i.Facility != null ? i.Facility.Name : "Unknown",
-                        bufferQty = i.Medicine != null ? i.Medicine.BufferQty : 0
+                        bufferQty = i.Medicine != null ? i.Medicine.BufferQty : 0,
+                        availableQuantity = _context.MedicineBatches // Available stock = sum of batch quantities where expiry date > today
+                            .Where(b => b.MedId == i.MedId && b.FacilityId == i.FacilityId && b.ExpiryDate > today)
+                            .Sum(b => b.Quantity),
+                        expiredQuantity = _context.MedicineBatches // Also get expired stock for reference
+                            .Where(b => b.MedId == i.MedId && b.FacilityId == i.FacilityId && b.ExpiryDate <= today)
+                            .Sum(b => b.Quantity)
                     })
                     .OrderBy(i => i.medicineName)
                     .ToListAsync();

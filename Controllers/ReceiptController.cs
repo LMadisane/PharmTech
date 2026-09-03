@@ -16,14 +16,14 @@ namespace PharmTech.Controllers
         private readonly PharmTechContext _context = context;
         private readonly ILogger<ReceiptController> _logger = logger;
 
-        // ==================== VIEW ====================
+        // ========= VIEW
 
         public IActionResult Index()
         {
             return View();
         }
 
-        // ==================== API ENDPOINTS ====================
+        // ========= API ENDPOINTS
 
         [HttpGet("api/receipt")]
         public async Task<IActionResult> GetReceipts(
@@ -199,7 +199,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // ==================== PDF GENERATION ====================
+        // PDF Generation
 
         private static byte[] GenerateSingleReceiptPdf(Receipt receipt)
         {

@@ -20,7 +20,7 @@ namespace PharmTech.Models
         [ForeignKey("FacilityId")]
         public virtual Facility? Facility { get; set; }
 
-        // Optional batch reference (if disposal came from a batch)
+        // batch reference (if disposal came from a batch)
         public int? BatchId { get; set; }
 
         [ForeignKey("BatchId")]
@@ -32,7 +32,6 @@ namespace PharmTech.Models
         // Why the drug is being disposed
         [Required]
         public string Reason { get; set; } = string.Empty;
-        // e.g. "Expired", "Damaged", "Recalled", "Contaminated"
 
         // Who recorded the disposal
         public int RecordedById { get; set; }

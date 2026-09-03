@@ -9,7 +9,7 @@ namespace PharmTech.Models
         public int ReceiptId { get; set; }
 
         [Required]
-        public string ReceiptNumber { get; set; } = string.Empty; // e.g. RCP-2026-001
+        public string ReceiptNumber { get; set; } = string.Empty; // RCP-2026-001
 
         [Required]
         public string ReceiptType { get; set; } = string.Empty; // Dispense, Return, Order

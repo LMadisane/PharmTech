@@ -1,6 +1,6 @@
 ﻿// auth.js - Handles session timeout warnings and role-based UI visibility
-
 // Session timeout warning, warns user 2 minutes before session expires
+
 function sessionTimer() {
     return {
         warningVisible: false,
@@ -40,7 +40,6 @@ function sessionTimer() {
 }
 
 // Hide or show elements based on user role
-// Usage: <div data-role="Admin,Pharmacist">...</div>
 document.addEventListener('DOMContentLoaded', () => {
     const userRole = document.body.dataset.userRole;
 

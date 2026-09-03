@@ -21,6 +21,7 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
+            <a href="c:\users\madis\source\repos\pharmtech\views\usermanagement\edituser.cshtml">c:\users\madis\source\repos\pharmtech\views\usermanagement\edituser.cshtml</a>
         </div>
         <p class="mt-2 text-gray-400 text-sm">Loading user data...</p>
     </div>
@@ -46,7 +47,7 @@
                        class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent dark:bg-gray-700 dark:text-white">
             </div>
 
-            <!-- Role (Disabled - cannot change role after creation) -->
+            <!-- Role cannot change role after creation -->
             <div class="mb-5">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Role</label>
                 <input type="text"
@@ -56,7 +57,7 @@
                 <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Role cannot be changed after creation</p>
             </div>
 
-            <!-- Facility (only for Doctors and Pharmacists) -->
+            <!-- Facility, only for Doctors and Pharmacists -->
             <div class="mb-5" x-show="form.role !== 'Patient'">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Facility</label>
                 <select x-model="form.facilityId"

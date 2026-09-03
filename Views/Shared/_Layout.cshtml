@@ -24,7 +24,6 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    
     <style>
     /* Alpine.js Cloak - prevents flashing */
     [x-cloak] {
@@ -130,7 +129,7 @@
                     </div>
                 </div>
 
-                <!-- Navigation Links - Helper to set active class -->
+                <!-- Navigation Links, Helper to set active class -->
                 @{
                     string GetActiveClass(string controller, string action = "Index")
                     {
@@ -155,7 +154,7 @@
                         <span x-show="sidebarOpen" class="whitespace-nowrap">Dashboard</span>
                     </a>
 
-                    <!-- Audit Logs - Admin only -->
+                    <!-- Audit Logs, Admin only -->
                     @if (User.IsInRole("Admin"))
                     {
                         <a asp-controller="AuditLogs" asp-action="Index"
@@ -167,7 +166,7 @@
                         </a>
                     }
 
-                    <!-- Dispensing - Pharmacist only -->
+                    <!-- Dispensing, Pharmacist only -->
                     @if (User.IsInRole("Pharmacist"))
                     {
                         <a asp-controller="Dispensing" asp-action="Index"
@@ -191,7 +190,7 @@
                         </a>
                     }
 
-                    <!-- Facilities - Admin only -->
+                    <!-- Facilities, Admin only -->
                     @if (User.IsInRole("Admin"))
                     {
                         <a asp-controller="Facility" asp-action="Index"
@@ -215,7 +214,7 @@
                         </a>
                     }
 
-                    <!-- Medicines - Admin only -->
+                    <!-- Medicines, Admin only -->
                     @if (User.IsInRole("Admin"))
                     {
                         <a asp-controller="Medicine" asp-action="Index"
@@ -232,11 +231,14 @@
                     @if (User.IsInRole("Admin") || User.IsInRole("Pharmacist"))
                     {
                         <a asp-controller="OrderRequest" asp-action="Index"
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition @GetActiveClass("OrderRequest")">
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition group relative">
                             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                             </svg>
                             <span x-show="sidebarOpen" class="whitespace-nowrap">Order Requests</span>
+                            <span class="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 hidden group-hover:block">
+                                Order Requests
+                            </span>
                         </a>
                     }
 
@@ -273,7 +275,7 @@
                         </a>
                     }
 
-                    <!-- User Management - Admin only -->
+                    <!-- User Management, Admin only -->
                     @if (User.IsInRole("Admin"))
                     {
                         <a asp-controller="UserManagement" asp-action="Index"
@@ -286,7 +288,7 @@
                     }
                 </nav>
 
-                <!-- Logout (inside sidebar card) -->
+                <!-- Logout, inside sidebar card -->
                 <div class="px-2 py-4 border-t border-gray-100 dark:border-gray-900 logout-gradient">
                     <a asp-controller="Account" asp-action="Logout"
                            class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-red-600 dark:hover:text-red-400 transition group relative">
@@ -301,13 +303,13 @@
                 </div>
             </aside>
 
-            <!-- Right column: main content + footer (aligned to right) -->
+            <!-- Right column: main content + footer, aligned to right -->
             <div class="flex-1 flex flex-col gap-6 ml-auto mt-6"
                  x-bind:style="'width: calc(100% - ' + (sidebarOpen ? '18rem' : '7rem') + ');'">
     
                 <!-- Main Content Card -->
                 <main class="glass shadow-xl overflow-hidden flex flex-col" style="height: calc(100vh - 3rem);">
-                    <!-- Header (fixed at top of card) -->
+                    <!-- Header, fixed at top of card -->
                     <header class="shrink-0 px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between header-gradient">
                         <h1 class="text-xl font-semibold text-gray-800 dark:text-white">
                             @ViewData["Title"]
@@ -364,7 +366,7 @@
                                             Showing latest 5 of <span x-text="notifications.length"></span>
                                         </li>
                                     </ul>
-                                    <!-- View All link - Only for Admins -->
+                                    <!-- View All link, only for Admins -->
                                     @if (User.IsInRole("Admin"))
                                     {
                                         <div class="px-4 py-2 border-t border-gray-100 dark:border-gray-700">
@@ -452,7 +454,7 @@
             </div>
         </template>
     </div>
-
+    
     <!-- JS Files -->
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/notifications.js" asp-append-version="true"></script>

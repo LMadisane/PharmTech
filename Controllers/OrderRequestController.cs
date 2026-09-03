@@ -19,9 +19,9 @@ namespace PharmTech.Controllers
             _logger = logger;
         }
 
-        // ==================== VIEWS ====================
+        // ========= VIEWS
 
-        // Pharmacist: view own orders, Admin: view all
+        // Pharmacist views own orders, Admin: view all
         public async Task<IActionResult> Index()
         {
             var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
@@ -34,7 +34,6 @@ namespace PharmTech.Controllers
                 .Include(o => o.ApprovedBy)
                 .AsQueryable();
 
-            // Pharmacists see only their own requests
             if (userRole == "Pharmacist")
             {
                 query = query.Where(o => o.RequestedById == userId);
@@ -51,7 +50,6 @@ namespace PharmTech.Controllers
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> CreateRequest()
         {
-            // Load medicines and suppliers for dropdowns
             ViewBag.Medicines = await _context.Medicines
                 .OrderBy(m => m.Name)
                 .ToListAsync();
@@ -59,6 +57,50 @@ namespace PharmTech.Controllers
                 .OrderBy(s => s.Name)
                 .ToListAsync();
             return View();
+        }
+
+        // Pharmacist: create new order request
+        [HttpPost]
+        [Authorize(Roles = "Pharmacist")]
+        public async Task<IActionResult> CreateRequest(OrderRequest order)
+        {
+            // Set system-assigned values before validation
+            order.Status = "Pending";
+            order.RequestedAt = DateTime.Now;
+
+            // Clear ModelState errors for system-assigned fields
+            ModelState.Remove("Status");
+            ModelState.Remove("RequestedAt");
+            ModelState.Remove("RequestedById");
+            ModelState.Remove("FacilityId");
+
+            if (!ModelState.IsValid)
+            {
+                ViewBag.Medicines = await _context.Medicines.OrderBy(m => m.Name).ToListAsync();
+                ViewBag.Suppliers = await _context.Suppliers.OrderBy(s => s.Name).ToListAsync();
+                return View(order);
+            }
+
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var user = await _context.Users.FindAsync(userId);
+
+            order.RequestedById = userId;
+
+            if (user?.FacilityId == null)
+            {
+                ModelState.AddModelError("", "You are not assigned to any facility. Please contact admin.");
+                ViewBag.Medicines = await _context.Medicines.OrderBy(m => m.Name).ToListAsync();
+                ViewBag.Suppliers = await _context.Suppliers.OrderBy(s => s.Name).ToListAsync();
+                return View(order);
+            }
+
+            order.FacilityId = user.FacilityId.Value;
+
+            _context.OrderRequests.Add(order);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Order request submitted successfully!";
+            return RedirectToAction(nameof(Index));
         }
 
         // Admin: view all pending requests
@@ -89,9 +131,8 @@ namespace PharmTech.Controllers
             return View(orders);
         }
 
-        // ==================== API ENDPOINTS ====================
+        // ======== API ENDPOINTS
 
-        // GET: api/orderrequest
         [HttpGet("api/orderrequest")]
         public async Task<IActionResult> GetOrders()
         {
@@ -136,41 +177,57 @@ namespace PharmTech.Controllers
             }
         }
 
-        // POST: api/orderrequest
         [HttpPost("api/orderrequest")]
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> CreateOrder([FromBody] OrderRequest order)
         {
             try
             {
-                if (!ModelState.IsValid)
-                    return BadRequest(new { success = false, message = "Invalid request data" });
+                // Set system-assigned values first
+                order.Status = "Pending";
+                order.RequestedAt = DateTime.Now;
 
-                // Set the requesting pharmacist
+                // Clear system-assigned fields from ModelState before validating
+                ModelState.Remove("Status");
+                ModelState.Remove("RequestedAt");
+                ModelState.Remove("RequestedById");
+                ModelState.Remove("FacilityId");
+
+                if (!ModelState.IsValid)
+                {
+                    var errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToList();
+                    return BadRequest(new { success = false, message = string.Join(", ", errors) });
+                }
+
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 var user = await _context.Users.FindAsync(userId);
 
                 order.RequestedById = userId;
-                order.Status = "Pending";
-                order.RequestedAt = DateTime.Now;
 
-                // If pharmacist has a facility, set it
                 if (user?.FacilityId != null)
                     order.FacilityId = user.FacilityId.Value;
 
                 _context.OrderRequests.Add(order);
                 await _context.SaveChangesAsync();
 
-                return Ok(new { success = true, message = "Order request created", order });
+                return Ok(new
+                {
+                    success = true,
+                    message = "Order request created",
+                    orderId = order.OrderId,
+                    status = order.Status
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating order");
+                _logger.LogError(ex, "Error creating order: {Message}", ex.Message);
                 return StatusCode(500, new { success = false, message = "An error occurred" });
             }
         }
 
-        // PUT: api/orderrequest/{id}/approve
         [HttpPut("api/orderrequest/{id}/approve")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ApproveOrder(int id)
@@ -199,7 +256,6 @@ namespace PharmTech.Controllers
             }
         }
 
-        // PUT: api/orderrequest/{id}/reject
         [HttpPut("api/orderrequest/{id}/reject")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> RejectOrder(int id)
@@ -228,7 +284,6 @@ namespace PharmTech.Controllers
             }
         }
 
-        // PUT: api/orderrequest/{id}/fulfill
         [HttpPut("api/orderrequest/{id}/fulfill")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> FulfillOrder(int id)
@@ -245,7 +300,6 @@ namespace PharmTech.Controllers
                 if (order.Status != "Approved")
                     return BadRequest(new { success = false, message = "Order must be approved first" });
 
-                // Add stock to inventory
                 var inventory = await _context.InventoryItems
                     .FirstOrDefaultAsync(i => i.MedId == order.MedId && i.FacilityId == order.FacilityId);
 
@@ -264,14 +318,13 @@ namespace PharmTech.Controllers
                     _context.InventoryItems.Add(inventory);
                 }
 
-                // Creating a new batch for traceability
                 var batch = new MedicineBatch
                 {
                     MedId = order.MedId,
                     FacilityId = order.FacilityId,
                     LotNumber = "ORDER-" + order.OrderId + "-" + DateTime.Now.ToString("yyyyMMdd"),
                     Quantity = order.Quantity,
-                    ExpiryDate = DateTime.Now.AddMonths(24), // default 2 years
+                    ExpiryDate = DateTime.Now.AddMonths(24),
                     DateReceived = DateTime.Now,
                     IsFlagged = false
                 };

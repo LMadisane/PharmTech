@@ -44,7 +44,7 @@ namespace PharmTech.Controllers
                 return View();
             }
 
-            // Build claims for cookie-based RBAC
+            // Build claims for cookie based RBAC
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
@@ -68,7 +68,7 @@ namespace PharmTech.Controllers
 
         private static bool VerifyPassword(string password, string hash)
         {
-            // Hash the entered password using SHA256 and compare
+            // Hash the entered password using sha256 and compare
             using var sha256 = SHA256.Create();
             var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
             var hashedPassword = Convert.ToBase64String(hashedBytes);

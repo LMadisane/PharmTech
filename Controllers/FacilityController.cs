@@ -19,7 +19,7 @@ namespace PharmTech.Controllers
             _logger = logger;
         }
 
-        // ==================== VIEWS ====================
+        // ======== VIEWS
 
         public IActionResult Index()
         {
@@ -37,9 +37,9 @@ namespace PharmTech.Controllers
             return View();
         }
 
-        // ==================== API ENDPOINTS ====================
+        // ======== API ENDPOINTS
 
-        // GET: api/facility
+        // Getting all facilities
         [HttpGet("api/facility")]
         public async Task<IActionResult> GetFacilities()
         {
@@ -65,7 +65,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // GET: api/facility/{id}
+        // Getting a single facility by ID
         [HttpGet("api/facility/{id}")]
         public async Task<IActionResult> GetFacility(int id)
         {
@@ -98,7 +98,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // POST: api/facility
+        // Create a new facility
         [HttpPost("api/facility")]
         public async Task<IActionResult> CreateFacility([FromBody] CreateFacilityRequest request)
         {
@@ -144,7 +144,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // PUT: api/facility/{id}
+        // Update an existing facility
         [HttpPut("api/facility/{id}")]
         public async Task<IActionResult> UpdateFacility(int id, [FromBody] UpdateFacilityRequest request)
         {
@@ -188,7 +188,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // DELETE: api/facility/{id}
+        // Deleting a facility
         [HttpDelete("api/facility/{id}")]
         public async Task<IActionResult> DeleteFacility(int id)
         {

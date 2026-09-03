@@ -18,7 +18,7 @@ namespace PharmTech.Controllers
             _logger = logger;
         }
 
-        // ==================== VIEWS ====================
+        // ======== VIEWS
 
         [Authorize(Roles = "Admin")]
         public IActionResult Index()
@@ -39,9 +39,9 @@ namespace PharmTech.Controllers
             return View();
         }
 
-        // ==================== API ENDPOINTS ====================
+        // ========= API ENDPOINTS
 
-        // GET: api/medicine - Allow Admins and Pharmacists to view medicines
+        // Allow Admins and Pharmacists to view medicines
         [HttpGet("api/medicine")]
         [Authorize(Roles = "Admin,Pharmacist")]
         public async Task<IActionResult> GetMedicines()
@@ -62,7 +62,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // GET: api/medicine/{id} - Allow Admins and Pharmacists to view medicines
+        // Allow Admins and Pharmacists to view medicines
         [HttpGet("api/medicine/{id}")]
         [Authorize(Roles = "Admin,Pharmacist")]
         public async Task<IActionResult> GetMedicine(int id)
@@ -96,7 +96,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // POST: api/medicine - Admin only
+        // Create a new medicine. Admin only
         [HttpPost("api/medicine")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateMedicine([FromBody] CreateMedicineRequest request)
@@ -142,7 +142,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // PUT: api/medicine/{id} - Admin only
+        // Updating a medicine. Admin only
         [HttpPut("api/medicine/{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateMedicine(int id, [FromBody] UpdateMedicineRequest request)
@@ -186,7 +186,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // DELETE: api/medicine/{id} - Admin only
+        // Deleting a medicine. Admin only
         [HttpDelete("api/medicine/{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteMedicine(int id)

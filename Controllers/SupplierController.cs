@@ -17,7 +17,7 @@ namespace PharmTech.Controllers
             _logger = logger;
         }
 
-        // ==================== VIEWS ====================
+        // ======== VIEWS
 
         [Authorize(Roles = "Admin,Pharmacist")]
         public async Task<IActionResult> Index()
@@ -43,9 +43,9 @@ namespace PharmTech.Controllers
             return View(supplier);
         }
 
-        // ==================== API ENDPOINTS ====================
+        // ========= API ENDPOINTS
 
-        // POST: api/supplier - Create supplier (Admin only)
+        // Create a new supplier (Admin only)
         [HttpPost("api/supplier")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateSupplierApi([FromBody] Supplier supplier)
@@ -67,7 +67,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // GET: api/supplier - Get all suppliers (Admin, Pharmacist)
+        // Getting all suppliers as Admin, Pharmacist
         [HttpGet("api/supplier")]
         [Authorize(Roles = "Admin,Pharmacist")]
         public async Task<IActionResult> GetSuppliersApi()
@@ -87,7 +87,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // GET: api/supplier/{id} - Get one supplier (Admin, Pharmacist)
+        // Getting a specific supplier by ID as Admin, Pharmacist
         [HttpGet("api/supplier/{id}")]
         [Authorize(Roles = "Admin,Pharmacist")]
         public async Task<IActionResult> GetSupplierApi(int id)
@@ -100,7 +100,7 @@ namespace PharmTech.Controllers
             return Ok(new { success = true, supplier });
         }
 
-        // PUT: api/supplier/{id} - Update supplier (Admin only)
+        // Putting an update to a specific supplier by ID as Admin
         [HttpPut("api/supplier/{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateSupplierApi(int id, [FromBody] Supplier updated)
@@ -127,7 +127,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // DELETE: api/supplier/{id} - Delete supplier (Admin only)
+        // Deleting a specific supplier by ID as Admin, with check for associated order requests
         [HttpDelete("api/supplier/{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteSupplierApi(int id)
@@ -158,7 +158,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // ==================== FORM POST ACTIONS ====================
+        // Form post actions for creating and editing suppliers for Admin only
 
         [HttpPost]
         [Authorize(Roles = "Admin")]

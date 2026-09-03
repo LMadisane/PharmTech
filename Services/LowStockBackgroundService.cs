@@ -33,7 +33,7 @@ namespace PharmTech.Services
                     _logger.LogError(ex, "Error during background stock/expiry check");
                 }
 
-                // Wait until next day (24 hours)
+                // Wait until next day 
                 await Task.Delay(TimeSpan.FromHours(24), stoppingToken);
             }
 

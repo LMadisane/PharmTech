@@ -50,7 +50,7 @@
                 </select>
             </div>
 
-            <!-- Facility (optional) -->
+            <!-- Facility -->
             <div class="mb-5" x-show="form.role !== 'Patient'">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Facility (Optional)</label>
                 <select x-model="form.facilityId"
@@ -63,7 +63,7 @@
                 <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Facility assignment is optional for Doctors and Pharmacists</p>
             </div>
 
-            <!-- Password - Only show for Doctor and Pharmacist -->
+            <!-- Password only shows for Doctor and Pharmacist -->
             <div class="mb-6" x-show="form.role !== 'Patient'">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Temporary Password *</label>
                 <input type="password"

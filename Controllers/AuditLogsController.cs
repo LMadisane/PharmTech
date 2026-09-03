@@ -19,7 +19,7 @@ namespace PharmTech.Controllers
             _logger = logger;
         }
 
-        // ==================== VIEWS ====================
+        // ------ VIEWS CONTROLLER 
 
         public async Task<IActionResult> Index()
         {
@@ -32,9 +32,9 @@ namespace PharmTech.Controllers
             return View(recentLogs);
         }
 
-        // ==================== API ENDPOINTS ====================
+        // ------ API ENDPOINTS 
 
-        // GET: api/auditlogs
+        // Getting auditlogs
         [HttpGet("api/auditlogs")]
         public async Task<IActionResult> GetLogs(
             [FromQuery] string? user,
@@ -73,9 +73,7 @@ namespace PharmTech.Controllers
                         l.UserId,
                         l.Action,
                         l.Entity,
-                        l.Timestamp,
-                        // If you have a User navigation property, uncomment:
-                        // userName = l.User != null ? l.User.Name : "Unknown"
+                        l.Timestamp
                     })
                     .ToListAsync();
 
@@ -88,7 +86,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // GET: api/auditlogs/{id}
+        // Getting auditlogs by id
         [HttpGet("api/auditlogs/{id}")]
         public async Task<IActionResult> GetLog(int id)
         {
@@ -107,7 +105,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // GET: api/auditlogs/actions
+        // Get distinct action types for filtering
         [HttpGet("api/auditlogs/actions")]
         public async Task<IActionResult> GetActionTypes()
         {
@@ -128,7 +126,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // GET: api/auditlogs/entities
+        // Getting distinct entity types for filtering
         [HttpGet("api/auditlogs/entities")]
         public async Task<IActionResult> GetEntityTypes()
         {
@@ -149,7 +147,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // DELETE: api/auditlogs/{id}
+        // Deleting a specific log entry by id
         [HttpDelete("api/auditlogs/{id}")]
         public async Task<IActionResult> DeleteLog(int id)
         {
@@ -171,7 +169,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // DELETE: api/auditlogs/clear
+        // Deleting all log entries older than a specified date
         [HttpDelete("api/auditlogs/clear")]
         public async Task<IActionResult> ClearLogs([FromQuery] DateTime? olderThan)
         {

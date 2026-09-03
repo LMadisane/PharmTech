@@ -31,8 +31,7 @@ namespace PharmTech.Models
         public int Quantity { get; set; }
 
         [Required]
-        public string Status { get; set; } = string.Empty; // Pending, Approved, Rejected
-
+        public string Status { get; set; } = "Pending"; // Pending, Approved, Rejected, Fulfilled
         public DateTime RequestedAt { get; set; } = DateTime.Now;
 
         public int? SupplierId { get; set; }

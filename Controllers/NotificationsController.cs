@@ -20,7 +20,7 @@ namespace PharmTech.Controllers
             _logger = logger;
         }
 
-        /// Getting unread system alerts (filtered by user's facility for non-admins)
+        // Getting unread system alerts. Filtered by user's facility for non-admins
         public async Task<IActionResult> GetUnreadAlerts()
         {
             var userId = GetCurrentUserId();
@@ -53,7 +53,7 @@ namespace PharmTech.Controllers
             return Ok(alerts);
         }
 
-        // GET: api/notifications/all
+        // Get all notifications
         [HttpGet("all")]
         public async Task<IActionResult> GetAllAlerts()
         {
@@ -96,7 +96,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        /// Get only low stock alerts
+        // Get only low stock alerts
         [HttpGet("lowstock")]
         public async Task<IActionResult> GetLowStockAlerts()
         {
@@ -129,7 +129,7 @@ namespace PharmTech.Controllers
             return Ok(alerts);
         }
 
-        /// Mark a single alert as read
+        // Mark a single alert as read
         public async Task<IActionResult> MarkAsRead(int id)
         {
             var alert = await _context.SystemAlerts.FindAsync(id);
@@ -141,7 +141,7 @@ namespace PharmTech.Controllers
             return Ok(new { message = "Alert marked as read" });
         }
 
-        /// Mark all (visible) alerts as read for the current user/facility
+        // Mark all visible alerts as read for the current user/facility
         [HttpPut("read/all")]
         public async Task<IActionResult> MarkAllAsRead()
         {

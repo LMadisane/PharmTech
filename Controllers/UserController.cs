@@ -6,7 +6,8 @@ using System.Security.Claims;
 
 namespace PharmTech.Controllers
 {
-    [Authorize]  // Any logged-in user (Admin, Doctor, Pharmacist) can access
+    // Any logged-in user has access
+    [Authorize]  
     public class UserController : Controller
     {
         private readonly PharmTechContext _context;
@@ -18,7 +19,7 @@ namespace PharmTech.Controllers
             _logger = logger;
         }
 
-        // GET: api/users/current
+        // Getting the current logged-in user details
         [HttpGet("api/users/current")]
         public async Task<IActionResult> GetCurrentUser()
         {

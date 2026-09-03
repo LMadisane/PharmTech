@@ -1,5 +1,4 @@
 ﻿// pharmacy.js - Shared UI logic for pharmacy operations
-
 // Generic table filter by search input
 function tableFilter() {
     return {

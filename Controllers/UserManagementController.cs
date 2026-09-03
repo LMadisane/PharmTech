@@ -22,7 +22,7 @@ namespace PharmTech.Controllers
             _logger = logger;
         }
 
-        // ==================== VIEWS ====================
+        // ========= VIEWS
 
         public IActionResult Index()
         {
@@ -40,7 +40,7 @@ namespace PharmTech.Controllers
             return View();
         }
 
-        // ==================== API ENDPOINTS ====================
+        // ======== API ENDPOINTS
 
         [HttpGet("api/usermanagement/users")]
         public async Task<IActionResult> GetUsers()
@@ -251,6 +251,7 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Fetching all facilities for dropdowns in user management
         [HttpGet("api/usermanagement/facilities")]
         public async Task<IActionResult> GetFacilities()
         {
@@ -269,7 +270,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // PUT: api/usermanagement/users/{id}
+        // Updating user details (name, email, facility, isActive) without changing the password
         [HttpPut("api/usermanagement/users/{id}")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest request)
         {
@@ -303,7 +304,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // DELETE: api/usermanagement/users/{id}
+        // Deleting a user, with checks to prevent deletion of the main admin account and handling related records
         [HttpDelete("api/usermanagement/users/{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {

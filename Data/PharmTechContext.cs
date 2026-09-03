@@ -32,7 +32,7 @@ namespace PharmTech.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // ==================== PRESCRIPTION RELATIONSHIPS ====================
+            // ======== Prescription Relationships
             modelBuilder.Entity<Prescription>()
                 .HasOne(p => p.Patient)
                 .WithMany(u => u.Prescriptions)
@@ -51,7 +51,7 @@ namespace PharmTech.Data
                 .HasForeignKey(p => p.FacilityId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // ==================== DRUG RETURN RELATIONSHIPS ====================
+            // ======== Drug Return Relationships
             modelBuilder.Entity<DrugReturn>()
                 .HasOne(dr => dr.Medicine)
                 .WithMany(m => m.DrugReturns)
@@ -70,7 +70,7 @@ namespace PharmTech.Data
                 .HasForeignKey(dr => dr.ProcessedById)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // ==================== INVENTORY ITEM RELATIONSHIPS ====================
+            // ======== Inventory Item Relationships
             modelBuilder.Entity<InventoryItem>()
                 .HasOne(ii => ii.Facility)
                 .WithMany(f => f.InventoryItems)
@@ -83,7 +83,7 @@ namespace PharmTech.Data
                 .HasForeignKey(ii => ii.MedId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // ==================== ORDER REQUEST RELATIONSHIPS ====================
+            // ========== Order Request Relationships
             modelBuilder.Entity<OrderRequest>()
                 .HasOne(or => or.Medicine)
                 .WithMany(m => m.OrderRequests)
@@ -108,21 +108,21 @@ namespace PharmTech.Data
                 .HasForeignKey(or => or.ApprovedById)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // ==================== USER RELATIONSHIPS ====================
+            // ========= User Relationships
             modelBuilder.Entity<User>()
                 .HasOne(u => u.Facility)
                 .WithMany(f => f.Users)
                 .HasForeignKey(u => u.FacilityId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // ==================== RECEIPT RELATIONSHIPS ====================
+            // ========= Receipt Relationships
             modelBuilder.Entity<Receipt>()
                 .HasOne(r => r.GeneratedBy)
                 .WithMany()
                 .HasForeignKey(r => r.GeneratedById)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // ==================== REFILL REQUEST RELATIONSHIPS ====================
+            // ======== Refill Request Relationships
             modelBuilder.Entity<RefillRequest>()
                 .HasOne(rr => rr.OriginalPrescription)
                 .WithMany()
@@ -141,7 +141,7 @@ namespace PharmTech.Data
                 .HasForeignKey(rr => rr.DoctorId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // ==================== STOCK THRESHOLD RELATIONSHIPS ====================
+            // ======== Stock Threshold Relationships
             modelBuilder.Entity<StockThreshold>()
                 .HasOne(st => st.Medicine)
                 .WithMany()
@@ -160,7 +160,7 @@ namespace PharmTech.Data
                 .HasForeignKey(st => st.SetById)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // ==================== SYSTEM ALERT RELATIONSHIPS ====================
+            // =========System Alert Relationships
             modelBuilder.Entity<SystemAlert>()
                 .HasOne(sa => sa.Medicine)
                 .WithMany()
@@ -173,7 +173,7 @@ namespace PharmTech.Data
                 .HasForeignKey(sa => sa.FacilityId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // ==================== MEDICINE BATCH RELATIONSHIPS ====================
+            // ========= Medicine Batch Relationships
             modelBuilder.Entity<MedicineBatch>()
                 .HasOne(mb => mb.Medicine)
                 .WithMany(m => m.Batches)
@@ -190,7 +190,7 @@ namespace PharmTech.Data
             modelBuilder.Entity<MedicineBatch>()
                 .HasIndex(mb => new { mb.MedId, mb.FacilityId });
 
-            // ==================== DISPOSAL RECORD RELATIONSHIPS ====================
+            // ======== Dispose Record Relationships
             modelBuilder.Entity<DisposalRecord>()
                 .HasOne(d => d.Medicine)
                 .WithMany(m => m.DisposalRecords)

@@ -20,7 +20,7 @@ namespace PharmTech.Controllers
             _logger = logger;
         }
 
-        // ==================== VIEWS ====================
+        // ======== VIEWS
 
         [Authorize(Roles = "Admin,Doctor,Pharmacist")]
         public IActionResult Index()
@@ -41,7 +41,7 @@ namespace PharmTech.Controllers
             return View();
         }
 
-        // ==================== API ENDPOINTS ====================
+        // ------- API ENDPOINTS
 
         [HttpGet("api/prescription")]
         public async Task<IActionResult> GetPrescriptions(
@@ -197,7 +197,6 @@ namespace PharmTech.Controllers
                     return BadRequest(new { success = false, message = "You are not assigned to any facility. Contact your administrator." });
 
                 // Patients are just Users referenced by ID — no role filter needed
-                // since patients don't log into the system directly
                 var patient = await _context.Users
                     .FirstOrDefaultAsync(u => u.UserId == request.PatientId);
 
@@ -274,14 +273,14 @@ namespace PharmTech.Controllers
             }
         }
 
-        // GET: api/prescription/patients
+        // Getting all patients for the prescription creation form
         [HttpGet("api/prescription/patients")]
-        [Authorize(Roles = "Doctor,Pharmacist")]  // Allow both Doctors and Pharmacists
+        [Authorize(Roles = "Doctor,Pharmacist")]  // Allowing both Doctors and Pharmacists
         public async Task<IActionResult> GetPatients()
         {
             try
             {
-                // Patients are GLOBAL - all facilities can see all patients
+                // Patients are global, all facilities can see all patients
                 var patients = await _context.Users
                     .Where(u => u.Role == "Patient" && u.IsActive)
                     .Select(u => new { u.UserId, u.Name, u.Email })

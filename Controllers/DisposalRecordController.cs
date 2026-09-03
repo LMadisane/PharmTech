@@ -18,6 +18,7 @@ namespace PharmTech.Controllers
             _context = context;
         }
 
+        // Update disposal record
         [HttpPost]
         public async Task<IActionResult> DisposeStock([FromBody] DisposalRecord record)
         {

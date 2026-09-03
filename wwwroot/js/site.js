@@ -1,5 +1,4 @@
 ﻿// site.js - Global utilities shared across all pages
-
 // Format a date string into a readable format
 function formatDate(dateString) {
     if (!dateString) return 'N/A';

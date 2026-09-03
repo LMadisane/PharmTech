@@ -1,5 +1,4 @@
 ﻿// dashboard.js - Chart.js initializations for the analytics dashboard
-
 // Stock levels bar chart
 function renderStockChart(canvasId, labels, data) {
     const ctx = document.getElementById(canvasId)?.getContext('2d');

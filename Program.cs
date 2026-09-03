@@ -109,7 +109,7 @@ app.UseAuthentication();
 // User Authorization
 app.UseAuthorization();
 
-// ========== ROUTES ===========
+// ------- Routes
 
 // Login route (Default)
 app.MapControllerRoute(

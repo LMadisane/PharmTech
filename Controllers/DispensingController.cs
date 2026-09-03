@@ -19,7 +19,7 @@ namespace PharmTech.Controllers
             _logger = logger;
         }
 
-        // ==================== VIEWS ====================
+        // ----- VIEWS
 
         [Authorize(Roles = "Pharmacist")]
         public IActionResult Index()
@@ -27,7 +27,7 @@ namespace PharmTech.Controllers
             return View();
         }
 
-        // ==================== API ENDPOINTS ====================
+        // ====== API ENDPOINTS
 
         [HttpGet("api/dispensing/{referenceCode}")]
         [Authorize(Roles = "Pharmacist")]
@@ -91,6 +91,7 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Dispensing a prescription
         [HttpPost("api/dispensing/dispense")]
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> Dispense([FromBody] DispenseRequest request)
@@ -182,7 +183,7 @@ namespace PharmTech.Controllers
                     Notes = $"Prescription: {prescription.ReferenceCode}",
                     LinkedRecordId = prescription.PrescriptionId,
                     GeneratedAt = DateTime.Now,
-                    FacilityId = pharmacist.FacilityId.Value  // Add this line
+                    FacilityId = pharmacist.FacilityId.Value
                 };
 
                 _context.Receipts.Add(receipt);
@@ -217,6 +218,7 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Get dispense history for a prescription
         [HttpGet("api/dispensing/prescription/{prescriptionId}/history")]
         [Authorize(Roles = "Admin,Doctor,Pharmacist")]
         public async Task<IActionResult> GetDispenseHistory(int prescriptionId)
@@ -247,6 +249,7 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Get facilities for the logged-in pharmacist
         [HttpGet("api/dispensing/facilities")]
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> GetFacilities()
@@ -256,7 +259,7 @@ namespace PharmTech.Controllers
                 var pharmacistId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 var pharmacist = await _context.Users.FindAsync(pharmacistId);
 
-                // Pharmacist can only see their own facility
+                // Pharmacists can only see their own facility
                 if (pharmacist != null && pharmacist.FacilityId.HasValue)
                 {
                     var facility = await _context.Facilities
@@ -276,6 +279,7 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Check stock levels and create low stock alerts if necessary
         private async Task CheckLowStockAndAlert(int medId, int facilityId, int currentStock)
         {
             var medicine = await _context.Medicines.FindAsync(medId);
