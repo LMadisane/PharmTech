@@ -1,0 +1,309 @@
+﻿@{
+    ViewData["Title"] = "New Disposal";
+}
+
+<div x-data="createDisposalApp()" x-init="init()" class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center gap-3">
+            <a href="/Disposal/Index" class="text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition">
+                ←Back to Disposals
+            </a>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">New Disposal</h1>
+        </div>
+        <p class="text-gray-700 dark:text-gray-300 text-sm mt-1">Record expired, damaged, or non-restockable medicine being removed from inventory</p>
+    </div>
+
+    <!-- Form Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        <form @@submit.prevent="submitDisposal()">
+
+            <!-- Facility, auto‑filled read‑only -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Facility</label>
+                <input type="text"
+                       x-model="facilityName"
+                       disabled
+                       class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed">
+                <input type="hidden" x-model="facilityId">
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Disposals are tied to your assigned facility</p>
+            </div>
+
+            <!-- Medicine Selection -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Medicine *</label>
+                <select x-model="form.medId"
+                    @@change="loadBatches()"
+                        required
+                        class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+                    <option value="">Select medicine...</option>
+                    <template x-for="med in medicines" :key="med.medId">
+                        <option :value="med.medId" x-text="med.name + ' (' + (med.dosageForm || 'N/A') + ')'"></option>
+                    </template>
+                </select>
+            </div>
+
+            <!-- Batch Selection -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Batch (Optional)</label>
+                <select x-model="form.batchId"
+                        class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+                    <option value="">No specific batch (reduce total stock only)</option>
+                    <template x-for="batch in batches" :key="batch.batchId">
+                        <option :value="batch.batchId"
+                                x-text="batch.lotNumber + ' (Qty: ' + batch.quantity + ', Exp: ' + formatDateShort(batch.expiryDate) + ')'">
+                        </option>
+                    </template>
+                </select>
+                <p x-show="!form.medId" class="text-xs text-gray-400 dark:text-gray-500 mt-1">Select a medicine first to see available batches</p>
+                <p x-show="form.medId && batches.length === 0" class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">No batches found for this medicine at your facility</p>
+            </div>
+
+            <!-- Quantity -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Quantity to Dispose *</label>
+                <input type="number"
+                       x-model="form.quantity"
+                       min="1"
+                       required
+                       placeholder="e.g., 5"
+                       class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Number of units being disposed</p>
+            </div>
+
+            <!-- Reason -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Reason *</label>
+                <select x-model="form.reason"
+                        required
+                        class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white">
+                    <option value="">Select reason...</option>
+                    <option value="Expired">Expired</option>
+                    <option value="Damaged">Damaged (broken, torn, etc.)</option>
+                    <option value="Contaminated">Contaminated</option>
+                    <option value="Recalled">Manufacturer Recall</option>
+                    <option value="Patient Return (Not Restockable)">Patient Return (Not Restockable)</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Notes (Optional)</label>
+                <textarea x-model="form.notes"
+                          rows="3"
+                          placeholder="Additional details about the disposal..."
+                          class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-gray-700 dark:text-white"></textarea>
+            </div>
+
+            <!-- Error Message -->
+            <div x-show="error" x-text="error" class="mb-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-xl px-4 py-2"></div>
+
+            <!-- Submit Buttons -->
+            <div class="flex gap-3">
+                <button type="submit"
+                        x-bind:disabled="submitting || !form.medId || !form.quantity || !form.reason"
+                        class="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-semibold px-6 py-3 rounded-xl transition duration-200">
+                    <span x-show="!submitting">Record Disposal</span>
+                    <span x-show="submitting" class="flex items-center justify-center gap-2">
+                        <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing...
+                    </span>
+                </button>
+                <a href="/Disposal/Index"
+                   class="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold px-6 py-3 rounded-xl transition duration-200 text-center">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Success Modal -->
+    <div x-show="showSuccess"
+         x-cloak
+         x-transition.opacity.duration.300ms
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        @@click.away="showSuccess = false">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full mx-4 p-6" @@click.stop>
+            <div class="text-center">
+                <div class="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="text-3xl">✅</span>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-2">Disposal Recorded!</h3>
+                <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">The stock disposal has been recorded successfully.</p>
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-4 text-left">
+                    <p class="text-sm text-gray-600 dark:text-gray-300"><strong>Medicine:</strong> <span x-text="successMedicineName"></span></p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300"><strong>Quantity:</strong> <span x-text="successQuantity"></span></p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300"><strong>Reason:</strong> <span x-text="successReason"></span></p>
+                </div>
+                <div class="flex gap-3">
+                    <button @@click="resetForm()" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-xl transition">
+                        Record Another
+                    </button>
+                    <a href="/DisposalRecord/Index" class="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold px-4 py-2 rounded-xl transition text-center">
+                        View All Disposals
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+    <script>
+        function createDisposalApp() {
+            return {
+                facilityId: '',
+                facilityName: '',
+                medicines: [],
+                batches: [],
+                submitting: false,
+                showSuccess: false,
+                error: null,
+                successMedicineName: '',
+                successQuantity: '',
+                successReason: '',
+                form: {
+                    medId: '',
+                    batchId: '',
+                    quantity: '',
+                    reason: '',
+                    notes: ''
+                },
+
+                async init() {
+                    await this.loadCurrentUser();
+                    await this.loadMedicines();
+                },
+
+                async loadCurrentUser() {
+                    try {
+                        const response = await fetch('/api/users/current');
+                        const result = await response.json();
+                        if (result.success && result.facility) {
+                            this.facilityId = result.facility.facilityId;
+                            this.facilityName = result.facility.name;
+                        } else {
+                            this.error = 'No facility assigned to your account. Please contact admin.';
+                        }
+                    } catch (err) {
+                        console.error('Error loading facility:', err);
+                        this.error = 'Unable to load your facility information';
+                    }
+                },
+
+                async loadMedicines() {
+                    try {
+                        const response = await fetch('/api/inventory/medicines');
+                        const result = await response.json();
+                        if (result.success) {
+                            this.medicines = result.medicines || [];
+                        }
+                    } catch (err) {
+                        console.error('Error loading medicines:', err);
+                    }
+                },
+
+                async loadBatches() {
+                    if (!this.form.medId || !this.facilityId) {
+                        this.batches = [];
+                        return;
+                    }
+
+                    try {
+                        const url = `/api/inventory/batches?medicineId=${this.form.medId}&facilityId=${this.facilityId}`;
+                        const response = await fetch(url);
+                        const result = await response.json();
+                        if (result.success) {
+                            // Only show batches with quantity > 0
+                            this.batches = (result.batches || []).filter(b => b.quantity > 0);
+                        } else {
+                            this.batches = [];
+                        }
+                    } catch (err) {
+                        console.error('Error loading batches:', err);
+                        this.batches = [];
+                    }
+                },
+
+                async submitDisposal() {
+                    this.submitting = true;
+                    this.error = null;
+
+                    // Build the payload matching DisposalRecord model
+                    const payload = {
+                        medId: parseInt(this.form.medId),
+                        facilityId: parseInt(this.facilityId),
+                        batchId: this.form.batchId ? parseInt(this.form.batchId) : null,
+                        quantity: parseInt(this.form.quantity),
+                        reason: this.form.reason,
+                        notes: this.form.notes || ''
+                    };
+
+                    try {
+                        const response = await fetch('/api/Disposal', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            // Get medicine name for success message
+                            const med = this.medicines.find(m => m.medId === parseInt(this.form.medId));
+                            this.successMedicineName = med ? med.name : 'Unknown';
+                            this.successQuantity = this.form.quantity;
+                            this.successReason = this.form.reason;
+                            this.showSuccess = true;
+                            showToast('Disposal recorded successfully!', 'success');
+                        } else {
+                            this.error = result.message || 'Failed to record disposal';
+                            showToast(this.error, 'error');
+                        }
+                    } catch (err) {
+                        console.error('Error recording disposal:', err);
+                        this.error = 'An error occurred while recording the disposal';
+                        showToast(this.error, 'error');
+                    } finally {
+                        this.submitting = false;
+                    }
+                },
+
+                resetForm() {
+                    this.showSuccess = false;
+                    this.form = {
+                        medId: '',
+                        batchId: '',
+                        quantity: '',
+                        reason: '',
+                        notes: ''
+                    };
+                    this.batches = [];
+                    this.error = null;
+                    this.successMedicineName = '';
+                    this.successQuantity = '';
+                    this.successReason = '';
+                },
+
+                formatDateShort(dateString) {
+                    if (!dateString) return 'N/A';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('en-ZA', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                }
+            }
+        }
+    </script>
+}

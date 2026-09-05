@@ -1,0 +1,167 @@
+﻿@{
+    ViewData["Title"] = "Reports";
+}
+
+<!-- Reports Page -->
+<div x-data="reportsApp()" class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">📊Reports</h1>
+        <p class="text-gray-700 dark:text-gray-300 text-sm">Generate and download summary reports for pharmacy operations</p>
+    </div>
+
+    <!-- Daily Report Card                                              -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
+        <div class="flex items-start gap-4">
+            <!-- Icon -->
+            <div class="w-12 h-12 bg-teal-100 dark:bg-teal-900/50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <span class="text-2xl">📅</span>
+            </div>
+            <!-- Content -->
+            <div class="flex-1">
+                <h2 class="text-lg font-bold text-gray-800 dark:text-white">Daily Summary Report</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Download a PDF summary of today's dispensing, returns, and order activities.
+                </p>
+                <ul class="text-xs text-gray-400 dark:text-gray-500 mt-2 list-disc list-inside space-y-0.5">
+                    <li>Total dispenses for today</li>
+                    <li>Total returns for today</li>
+                    <li>Total orders placed today</li>
+                    <li>Detailed lists of each transaction</li>
+                </ul>
+                <div class="mt-4">
+                    <button @@click="downloadDaily()"
+                        x-bind:disabled="downloadingDaily"
+                        class="bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-semibold px-6 py-2.5 rounded-xl transition duration-200 text-sm inline-flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span x-show="!downloadingDaily">Download Daily Report (PDF)</span>
+                        <span x-show="downloadingDaily" class="flex items-center gap-2">
+                            <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
+                            Generating...
+                        </span>
+                    </button>
+                </div>
+            </div>
+            <!-- Badge -->
+            <div class="hidden sm:block">
+                <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                    Today
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weekly Report Card                                             -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
+        <div class="flex items-start gap-4">
+            <!-- Icon -->
+            <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <span class="text-2xl">📆</span>
+            </div>
+            <!-- Content -->
+            <div class="flex-1">
+                <h2 class="text-lg font-bold text-gray-800 dark:text-white">Weekly Summary Report</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Download a PDF summary of the last 7 days of pharmacy operations.
+                </p>
+                <ul class="text-xs text-gray-400 dark:text-gray-500 mt-2 list-disc list-inside space-y-0.5">
+                    <li>Total dispenses over the past week</li>
+                    <li>Total returns over the past week</li>
+                    <li>Total orders placed in the past week</li>
+                    <li>Breakdown by medicine and date</li>
+                </ul>
+                <div class="mt-4">
+                    <button @@click="downloadWeekly()"
+                        x-bind:disabled="downloadingWeekly"
+                        class="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-semibold px-6 py-2.5 rounded-xl transition duration-200 text-sm inline-flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span x-show="!downloadingWeekly">Download Weekly Report (PDF)</span>
+                        <span x-show="downloadingWeekly" class="flex items-center gap-2">
+                            <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
+                            Generating...
+                        </span>
+                    </button>
+                </div>
+            </div>
+            <!-- Badge -->
+            <div class="hidden sm:block">
+                <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                    Last 7 Days
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Note                                                      -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl px-5 py-4 flex items-start gap-3">
+        <span class="text-blue-600 dark:text-blue-400 text-lg mt-0.5">ℹ️</span>
+        <div>
+            <p class="text-sm text-blue-800 dark:text-blue-200 font-medium">Report Details</p>
+            <p class="text-sm text-blue-700 dark:text-blue-300">
+                Reports are generated as PDF files and will download automatically.
+                Data is filtered by your facility if you are not an administrator.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Alpine.js App -->
+@section Scripts {
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+    <script>
+        function reportsApp() {
+            return {
+                downloadingDaily: false,
+                downloadingWeekly: false,
+
+                // Download Daily Report
+                downloadDaily() {
+                    this.downloadingDaily = true;
+                    try {
+                        // Open in new tab to avoid blocking UI
+                        window.open('/api/report/daily', '_blank');
+                        showToast('Daily report download started', 'success');
+                    } catch (err) {
+                        console.error('Error downloading daily report:', err);
+                        showToast('Failed to download daily report', 'error');
+                    } finally {
+                        // Reset loading state after a short delay
+                        setTimeout(() => {
+                            this.downloadingDaily = false;
+                        }, 1000);
+                    }
+                },
+
+                // Download Weekly Report
+                downloadWeekly() {
+                    this.downloadingWeekly = true;
+                    try {
+                        window.open('/api/report/weekly', '_blank');
+                        showToast('Weekly report download started', 'success');
+                    } catch (err) {
+                        console.error('Error downloading weekly report:', err);
+                        showToast('Failed to download weekly report', 'error');
+                    } finally {
+                        setTimeout(() => {
+                            this.downloadingWeekly = false;
+                        }, 1000);
+                    }
+                }
+            }
+        }
+    </script>
+}

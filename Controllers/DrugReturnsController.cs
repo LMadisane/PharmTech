@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
 using PharmTech.Models;
 using PharmTech.Models.DTOs;
+using PharmTech.Services;
 using System.Security.Claims;
 
 namespace PharmTech.Controllers
@@ -13,11 +14,16 @@ namespace PharmTech.Controllers
     {
         private readonly PharmTechContext _context;
         private readonly ILogger<DrugReturnsController> _logger;
+        private readonly IAuditLogService _auditLogService;
 
-        public DrugReturnsController(PharmTechContext context, ILogger<DrugReturnsController> logger)
+        public DrugReturnsController(
+            PharmTechContext context,
+            ILogger<DrugReturnsController> logger,
+            IAuditLogService auditLogService)
         {
             _context = context;
             _logger = logger;
+            _auditLogService = auditLogService;
         }
 
         // ======= VIEWS
@@ -36,7 +42,7 @@ namespace PharmTech.Controllers
 
         // ======= API ENDPOINTS
 
-        // Getting all returns with optional filtering based on user role and facility
+        // Retrieves all returns filtered by role/facility
         [HttpGet("api/drugreturns")]
         public async Task<IActionResult> GetAllReturns()
         {
@@ -82,7 +88,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Geting a specific return by ID
+        // Retrieves a single return by ID
         [HttpGet("api/drugreturns/{id}")]
         public async Task<IActionResult> GetReturn(int id)
         {
@@ -97,7 +103,7 @@ namespace PharmTech.Controllers
             return Ok(new { success = true, data = result });
         }
 
-        // Create a return request only if it's still pending
+        // Creates a new return request (Pharmacist only)
         [HttpPost("api/drugreturns")]
         public async Task<IActionResult> CreateReturnRequest([FromBody] CreateDrugReturnDto dto)
         {
@@ -140,6 +146,15 @@ namespace PharmTech.Controllers
                 _context.DrugReturns.Add(model);
                 await _context.SaveChangesAsync();
 
+                // AUDIT LOG: Return request created
+                await _auditLogService.LogAsync(
+                    action: "CreateReturn",
+                    entity: "DrugReturn",
+                    entityId: model.ReturnId,
+                    details: $"Return request created for '{medicine.Name}' (Qty: {dto.Quantity}, Reason: {dto.Reason}, Restockable: {dto.IsRestockable})",
+                    facilityId: model.FacilityId
+                );
+
                 return Ok(new { success = true, message = "Return request created successfully" });
             }
             catch (Exception ex)
@@ -149,7 +164,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Putting a return request to approved status and optionally restocking the medicine
+        // Approves a return request, restocks or disposes accordingly
         [HttpPut("api/drugreturns/{id}/approve")]
         public async Task<IActionResult> ApproveReturn(int id, [FromQuery] int processedById)
         {
@@ -169,6 +184,7 @@ namespace PharmTech.Controllers
                 returnItem.Status = "Approved";
                 returnItem.ProcessedById = processedById;
 
+                // If restockable, add back to inventory
                 if (returnItem.IsRestockable)
                 {
                     var inventory = await _context.InventoryItems
@@ -191,7 +207,23 @@ namespace PharmTech.Controllers
                         inventory.Quantity += returnItem.Quantity;
                     }
                 }
+                else
+                {
+                    // If NOT restockable, log a disposal record
+                    var disposal = new DisposalRecord
+                    {
+                        MedId = returnItem.MedId,
+                        FacilityId = returnItem.FacilityId,
+                        Quantity = returnItem.Quantity,
+                        Reason = "Patient Return (Not Restockable)",
+                        Notes = $"Return ID: {returnItem.ReturnId} - Reason: {returnItem.Reason}",
+                        RecordedById = processedById,
+                        RecordedAt = DateTime.Now
+                    };
+                    _context.DisposalRecords.Add(disposal);
+                }
 
+                // Generate receipt
                 var receipt = new Receipt
                 {
                     ReceiptNumber = $"RET-{DateTime.Now:yyyyMMdd}-{returnItem.ReturnId}",
@@ -208,6 +240,15 @@ namespace PharmTech.Controllers
 
                 _context.Receipts.Add(receipt);
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: Return approved
+                await _auditLogService.LogAsync(
+                    action: "ApproveReturn",
+                    entity: "DrugReturn",
+                    entityId: returnItem.ReturnId,
+                    details: $"Return request approved for '{returnItem.Medicine?.Name ?? "Unknown"}' (Qty: {returnItem.Quantity}, Restocked: {returnItem.IsRestockable})",
+                    facilityId: returnItem.FacilityId
+                );
 
                 return Ok(new
                 {
@@ -228,13 +269,14 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Updating a return request to rejected status
+        // Rejects a return request
         [HttpPut("api/drugreturns/{id}/reject")]
         public async Task<IActionResult> RejectReturn(int id, [FromQuery] int processedById)
         {
             try
             {
                 var returnItem = await _context.DrugReturns
+                    .Include(r => r.Medicine)
                     .FirstOrDefaultAsync(r => r.ReturnId == id);
 
                 if (returnItem == null)
@@ -247,6 +289,15 @@ namespace PharmTech.Controllers
                 returnItem.ProcessedById = processedById;
 
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: Return rejected
+                await _auditLogService.LogAsync(
+                    action: "RejectReturn",
+                    entity: "DrugReturn",
+                    entityId: returnItem.ReturnId,
+                    details: $"Return request rejected for '{returnItem.Medicine?.Name ?? "Unknown"}' (Qty: {returnItem.Quantity})",
+                    facilityId: returnItem.FacilityId
+                );
 
                 return Ok(new
                 {
@@ -266,7 +317,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Creating a recall for a specific lot number, marking all batches with that lot number as recalled and reducing inventory accordingly
+        // Recalls a drug by lot number
         [HttpPost("api/drugreturns/recall")]
         public async Task<IActionResult> RecallDrug([FromQuery] string lotNumber)
         {
@@ -305,6 +356,14 @@ namespace PharmTech.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: Drug recall
+                await _auditLogService.LogAsync(
+                    action: "RecallDrug",
+                    entity: "DrugReturn",
+                    details: $"Drug recall triggered for Lot Number: {lotNumber}",
+                    facilityId: batches.FirstOrDefault()?.FacilityId
+                );
 
                 return Ok(new { success = true, message = "Recall completed" });
             }

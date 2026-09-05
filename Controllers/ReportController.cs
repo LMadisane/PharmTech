@@ -8,15 +8,28 @@ using QuestPDF.Infrastructure;
 
 namespace PharmTech.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    [Authorize(Roles = "Admin,Pharmacist")] // Both Admin and Pharmacist can generate reports
-    public class ReportController(PharmTechContext context) : ControllerBase
+    [Authorize(Roles = "Admin,Pharmacist")]
+    public class ReportController : Controller
     {
-        private readonly PharmTechContext _context = context;
+        private readonly PharmTechContext _context;
 
-        // Download daily summary report
-        [HttpGet("daily")]
+        public ReportController(PharmTechContext context)
+        {
+            _context = context;
+        }
+
+        // ======== VIEWS
+        
+        // Displays the reports page with download buttons
+        public IActionResult Reports()
+        {
+            return View();
+        }
+
+        // ======== API ENDPOINTS
+
+        // Generates and downloads a PDF summary of today's operations
+        [HttpGet("api/report/daily")]
         public async Task<IActionResult> DailyReport()
         {
             var today = DateTime.Today;
@@ -164,8 +177,8 @@ namespace PharmTech.Controllers
                 $"DailySummary-{today:yyyyMMdd}.pdf");
         }
 
-        // Download weekly summary report
-        [HttpGet("weekly")]
+        // Getting weekly reports
+        [HttpGet("api/report/weekly")]
         public async Task<IActionResult> WeeklyReport()
         {
             var today = DateTime.Today;

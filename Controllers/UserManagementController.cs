@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
 using PharmTech.Models;
 using PharmTech.Models.DTOs;
+using PharmTech.Services;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -15,11 +16,16 @@ namespace PharmTech.Controllers
     {
         private readonly PharmTechContext _context;
         private readonly ILogger<UserManagementController> _logger;
+        private readonly IAuditLogService _auditLogService;
 
-        public UserManagementController(PharmTechContext context, ILogger<UserManagementController> logger)
+        public UserManagementController(
+            PharmTechContext context,
+            ILogger<UserManagementController> logger,
+            IAuditLogService auditLogService)
         {
             _context = context;
             _logger = logger;
+            _auditLogService = auditLogService;
         }
 
         // ========= VIEWS
@@ -42,6 +48,7 @@ namespace PharmTech.Controllers
 
         // ======== API ENDPOINTS
 
+        // Retrieves all users with their facility informatio
         [HttpGet("api/usermanagement/users")]
         public async Task<IActionResult> GetUsers()
         {
@@ -71,6 +78,7 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Retrieves a single user by ID
         [HttpGet("api/usermanagement/users/{id}")]
         public async Task<IActionResult> GetUser(int id)
         {
@@ -106,6 +114,7 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Creates a new user (Doctor, Pharmacist, or Patient)
         [HttpPost("api/usermanagement/users")]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
         {
@@ -130,7 +139,7 @@ namespace PharmTech.Controllers
                 string passwordHash;
                 if (request.Role == "Patient")
                 {
-                    // Patients don't login, so use a placeholder hash (they can't authenticate)
+                    // Patients don't login, so use a placeholder hash
                     passwordHash = HashPassword(Guid.NewGuid().ToString());
                 }
                 else
@@ -155,6 +164,15 @@ namespace PharmTech.Controllers
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
 
+                // AUDIT LOG: User created
+                await _auditLogService.LogAsync(
+                    action: "CreateUser",
+                    entity: "User",
+                    entityId: user.UserId,
+                    details: $"User {user.Name} ({user.Email}) created with role {user.Role}",
+                    facilityId: user.FacilityId
+                );
+
                 return Ok(new
                 {
                     success = true,
@@ -176,6 +194,7 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Deactivates a user account
         [HttpPut("api/usermanagement/users/{id}/deactivate")]
         public async Task<IActionResult> DeactivateUser(int id)
         {
@@ -195,6 +214,15 @@ namespace PharmTech.Controllers
                 user.IsActive = false;
                 await _context.SaveChangesAsync();
 
+                // AUDIT LOG: User deactivated
+                await _auditLogService.LogAsync(
+                    action: "DeactivateUser",
+                    entity: "User",
+                    entityId: user.UserId,
+                    details: $"User {user.Name} ({user.Email}) deactivated",
+                    facilityId: user.FacilityId
+                );
+
                 return Ok(new { success = true, message = "User deactivated successfully" });
             }
             catch (Exception ex)
@@ -204,6 +232,7 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Reactivates a deactivated user account
         [HttpPut("api/usermanagement/users/{id}/reactivate")]
         public async Task<IActionResult> ReactivateUser(int id)
         {
@@ -220,6 +249,15 @@ namespace PharmTech.Controllers
                 user.IsActive = true;
                 await _context.SaveChangesAsync();
 
+                // AUDIT LOG: User reactivated
+                await _auditLogService.LogAsync(
+                    action: "ReactivateUser",
+                    entity: "User",
+                    entityId: user.UserId,
+                    details: $"User {user.Name} ({user.Email}) reactivated",
+                    facilityId: user.FacilityId
+                );
+
                 return Ok(new { success = true, message = "User reactivated successfully" });
             }
             catch (Exception ex)
@@ -229,6 +267,7 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Resets a user's password
         [HttpPut("api/usermanagement/users/{id}/reset-password")]
         public async Task<IActionResult> ResetPassword(int id, [FromBody] ResetPasswordRequest request)
         {
@@ -242,6 +281,15 @@ namespace PharmTech.Controllers
                 user.PasswordHash = HashPassword(request.NewPassword);
                 await _context.SaveChangesAsync();
 
+                // AUDIT LOG: Password reset
+                await _auditLogService.LogAsync(
+                    action: "ResetPassword",
+                    entity: "User",
+                    entityId: user.UserId,
+                    details: $"Password reset for user {user.Name} ({user.Email})",
+                    facilityId: user.FacilityId
+                );
+
                 return Ok(new { success = true, message = "Password reset successfully" });
             }
             catch (Exception ex)
@@ -251,7 +299,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Fetching all facilities for dropdowns in user management
+        // Retrieves all facilities for dropdowns
         [HttpGet("api/usermanagement/facilities")]
         public async Task<IActionResult> GetFacilities()
         {
@@ -270,7 +318,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Updating user details (name, email, facility, isActive) without changing the password
+        // Updates user details (name, email, facility, isActive)
         [HttpPut("api/usermanagement/users/{id}")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest request)
         {
@@ -288,12 +336,33 @@ namespace PharmTech.Controllers
                 if (existingUser != null)
                     return BadRequest(new { success = false, message = "Email already in use by another user" });
 
+                // Capture old values for audit
+                var oldName = user.Name;
+                var oldEmail = user.Email;
+                var oldFacilityId = user.FacilityId;
+                var oldIsActive = user.IsActive;
+
                 user.Name = request.Name;
                 user.Email = request.Email;
                 user.FacilityId = request.FacilityId;
                 user.IsActive = request.IsActive;
 
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: User updated
+                var details = $"User {oldName} updated. ";
+                if (oldName != request.Name) details += $"Name: '{oldName}' → '{request.Name}'. ";
+                if (oldEmail != request.Email) details += $"Email: '{oldEmail}' → '{request.Email}'. ";
+                if (oldFacilityId != request.FacilityId) details += $"FacilityId: {oldFacilityId} → {request.FacilityId}. ";
+                if (oldIsActive != request.IsActive) details += $"IsActive: {oldIsActive} → {request.IsActive}. ";
+
+                await _auditLogService.LogAsync(
+                    action: "UpdateUser",
+                    entity: "User",
+                    entityId: user.UserId,
+                    details: details.Trim(),
+                    facilityId: user.FacilityId
+                );
 
                 return Ok(new { success = true, message = "User updated successfully" });
             }
@@ -304,7 +373,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Deleting a user, with checks to prevent deletion of the main admin account and handling related records
+        // Deletes a user (or deactivates if they have related records)
         [HttpDelete("api/usermanagement/users/{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
@@ -325,14 +394,33 @@ namespace PharmTech.Controllers
 
                 if (hasPrescriptions || hasOrderRequests)
                 {
-                    // Soft delete - deactivate instead
+                    // Soft delete, deactivate instead
                     user.IsActive = false;
                     await _context.SaveChangesAsync();
+
+                    // AUDIT LOG: User deactivated
+                    await _auditLogService.LogAsync(
+                        action: "DeleteUser",
+                        entity: "User",
+                        entityId: user.UserId,
+                        details: $"User {user.Name} ({user.Email}) deactivated instead of deleted due to existing records",
+                        facilityId: user.FacilityId
+                    );
+
                     return Ok(new { success = true, message = "User has existing records. Account has been deactivated instead." });
                 }
 
                 _context.Users.Remove(user);
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: User deleted
+                await _auditLogService.LogAsync(
+                    action: "DeleteUser",
+                    entity: "User",
+                    entityId: user.UserId,
+                    details: $"User {user.Name} ({user.Email}) permanently deleted",
+                    facilityId: user.FacilityId
+                );
 
                 return Ok(new { success = true, message = "User deleted successfully" });
             }
@@ -343,6 +431,7 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Helper: Hash a password using SHA256
         private static string HashPassword(string password)
         {
             using var sha256 = SHA256.Create();

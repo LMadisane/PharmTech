@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
 using PharmTech.Models;
 using PharmTech.Models.DTOs;
+using PharmTech.Services;
 
 namespace PharmTech.Controllers
 {
@@ -11,11 +12,16 @@ namespace PharmTech.Controllers
     {
         private readonly PharmTechContext _context;
         private readonly ILogger<MedicineController> _logger;
+        private readonly IAuditLogService _auditLogService;
 
-        public MedicineController(PharmTechContext context, ILogger<MedicineController> logger)
+        public MedicineController(
+            PharmTechContext context,
+            ILogger<MedicineController> logger,
+            IAuditLogService auditLogService)
         {
             _context = context;
             _logger = logger;
+            _auditLogService = auditLogService;
         }
 
         // ======== VIEWS
@@ -41,7 +47,7 @@ namespace PharmTech.Controllers
 
         // ========= API ENDPOINTS
 
-        // Allow Admins and Pharmacists to view medicines
+        // Retrieves all medicines (Admin & Pharmacist)
         [HttpGet("api/medicine")]
         [Authorize(Roles = "Admin,Pharmacist")]
         public async Task<IActionResult> GetMedicines()
@@ -62,7 +68,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Allow Admins and Pharmacists to view medicines
+        // Retrieves a single medicine by ID
         [HttpGet("api/medicine/{id}")]
         [Authorize(Roles = "Admin,Pharmacist")]
         public async Task<IActionResult> GetMedicine(int id)
@@ -96,7 +102,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Create a new medicine. Admin only
+        // Creates a new medicine (Admin only)
         [HttpPost("api/medicine")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateMedicine([FromBody] CreateMedicineRequest request)
@@ -122,6 +128,14 @@ namespace PharmTech.Controllers
                 _context.Medicines.Add(medicine);
                 await _context.SaveChangesAsync();
 
+                // AUDIT LOG: Medicine created
+                await _auditLogService.LogAsync(
+                    action: "CreateMedicine",
+                    entity: "Medicine",
+                    entityId: medicine.MedId,
+                    details: $"Medicine '{medicine.Name}' (Dosage: {medicine.DosageForm}, Buffer: {medicine.BufferQty}) created"
+                );
+
                 return Ok(new
                 {
                     success = true,
@@ -142,7 +156,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Updating a medicine. Admin only
+        // Updates an existing medicine (Admin only)
         [HttpPut("api/medicine/{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateMedicine(int id, [FromBody] UpdateMedicineRequest request)
@@ -160,11 +174,29 @@ namespace PharmTech.Controllers
                 if (existingMedicine != null)
                     return BadRequest(new { success = false, message = "Another medicine with this name already exists" });
 
+                // Capture old values for audit
+                var oldName = medicine.Name;
+                var oldDosageForm = medicine.DosageForm;
+                var oldBufferQty = medicine.BufferQty;
+
                 medicine.Name = request.Name;
                 medicine.DosageForm = request.DosageForm;
                 medicine.BufferQty = request.BufferQty;
 
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: Medicine updated
+                var details = $"Medicine ID {id} updated. ";
+                if (oldName != request.Name) details += $"Name: '{oldName}' → '{request.Name}'. ";
+                if (oldDosageForm != request.DosageForm) details += $"DosageForm: '{oldDosageForm}' → '{request.DosageForm}'. ";
+                if (oldBufferQty != request.BufferQty) details += $"BufferQty: {oldBufferQty} → {request.BufferQty}. ";
+
+                await _auditLogService.LogAsync(
+                    action: "UpdateMedicine",
+                    entity: "Medicine",
+                    entityId: medicine.MedId,
+                    details: details.Trim()
+                );
 
                 return Ok(new
                 {
@@ -186,7 +218,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Deleting a medicine. Admin only
+        // Deletes a medicine (Admin only)
         [HttpDelete("api/medicine/{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteMedicine(int id)
@@ -206,8 +238,17 @@ namespace PharmTech.Controllers
                     return BadRequest(new { success = false, message = "Cannot delete medicine with existing inventory or prescriptions" });
                 }
 
+                var medicineName = medicine.Name;
                 _context.Medicines.Remove(medicine);
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: Medicine deleted
+                await _auditLogService.LogAsync(
+                    action: "DeleteMedicine",
+                    entity: "Medicine",
+                    entityId: id,
+                    details: $"Medicine '{medicineName}' (ID: {id}) deleted"
+                );
 
                 return Ok(new { success = true, message = "Medicine deleted successfully" });
             }

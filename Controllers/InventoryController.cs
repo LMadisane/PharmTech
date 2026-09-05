@@ -5,6 +5,7 @@ using PharmTech.Data;
 using PharmTech.Models;
 using PharmTech.Models.DTOs;
 using System.Security.Claims;
+using PharmTech.Services;
 
 namespace PharmTech.Controllers
 {
@@ -13,11 +14,16 @@ namespace PharmTech.Controllers
     {
         private readonly PharmTechContext _context;
         private readonly ILogger<InventoryController> _logger;
+        private readonly IAuditLogService _auditLogService;
 
-        public InventoryController(PharmTechContext context, ILogger<InventoryController> logger)
+        public InventoryController(
+            PharmTechContext context,
+            ILogger<InventoryController> logger,
+            IAuditLogService auditLogService)
         {
             _context = context;
             _logger = logger;
+            _auditLogService = auditLogService;
         }
 
         // ========= VIEWS
@@ -197,6 +203,7 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Adds a new batch of medicine to inventory (Admin & Pharmacist)
         [HttpPost("api/inventory/batch")]
         [Authorize(Roles = "Admin,Pharmacist")]
         public async Task<IActionResult> AddBatch([FromBody] AddBatchRequest request)
@@ -276,6 +283,15 @@ namespace PharmTech.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: Stock added (batch created)
+                await _auditLogService.LogAsync(
+                    action: "AddBatch",
+                    entity: "MedicineBatch",
+                    entityId: batch.BatchId,
+                    details: $"Added {request.Quantity} units of '{medicine.Name}' (Lot: {request.LotNumber}) to facility '{facility.Name}' (Expiry: {request.ExpiryDate:yyyy-MM-dd})",
+                    facilityId: request.FacilityId
+                );
 
                 return Ok(new
                 {

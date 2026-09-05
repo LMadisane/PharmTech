@@ -63,6 +63,8 @@ builder.Services.AddSession(options =>
 
 // Background service
 builder.Services.AddHostedService<LowStockBackgroundService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 var app = builder.Build();
 

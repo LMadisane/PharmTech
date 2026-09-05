@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PharmTech.Data;
 
@@ -11,9 +12,11 @@ using PharmTech.Data;
 namespace PharmTech.Migrations
 {
     [DbContext(typeof(PharmTechContext))]
-    partial class PharmTechContextModelSnapshot : ModelSnapshot
+    [Migration("20260905125233_AddUserNavigationToAuditLogs")]
+    partial class AddUserNavigationToAuditLogs
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -32,58 +35,19 @@ namespace PharmTech.Migrations
 
                     b.Property<string>("Action")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("Details")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Entity")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<int?>("EntityId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("FacilityId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("IPAddress")
-                        .HasMaxLength(45)
-                        .HasColumnType("varchar(45)");
-
-                    b.Property<string>("NewValue")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("PreviousValue")
                         .HasColumnType("longtext");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("UserAgent")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
-                    b.Property<string>("UserName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("UserRole")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
                     b.HasKey("AuditLogId");
-
-                    b.HasIndex("FacilityId");
 
                     b.HasIndex("UserId");
 
@@ -665,17 +629,11 @@ namespace PharmTech.Migrations
 
             modelBuilder.Entity("PharmTech.Models.AuditLog", b =>
                 {
-                    b.HasOne("PharmTech.Models.Facility", "Facility")
-                        .WithMany()
-                        .HasForeignKey("FacilityId");
-
                     b.HasOne("PharmTech.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Facility");
 
                     b.Navigation("User");
                 });

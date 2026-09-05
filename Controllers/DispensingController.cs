@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
 using PharmTech.Models;
 using PharmTech.Models.DTOs;
+using PharmTech.Services;          // ← Make sure this is added
 using System.Security.Claims;
 
 namespace PharmTech.Controllers
@@ -12,14 +13,21 @@ namespace PharmTech.Controllers
     {
         private readonly PharmTechContext _context;
         private readonly ILogger<DispensingController> _logger;
+        private readonly IAuditLogService _auditLogService;  // ← ADDED
 
-        public DispensingController(PharmTechContext context, ILogger<DispensingController> logger)
+        public DispensingController(
+            PharmTechContext context,
+            ILogger<DispensingController> logger,
+            IAuditLogService auditLogService)                 // ← ADDED PARAMETER
         {
             _context = context;
             _logger = logger;
+            _auditLogService = auditLogService;               // ← ADDED
         }
 
-        // ----- VIEWS
+        // ============================================================
+        // VIEWS
+        // ============================================================
 
         [Authorize(Roles = "Pharmacist")]
         public IActionResult Index()
@@ -27,8 +35,14 @@ namespace PharmTech.Controllers
             return View();
         }
 
-        // ====== API ENDPOINTS
+        // ============================================================
+        // API ENDPOINTS
+        // ============================================================
 
+        // ============================================================
+        // GET: api/dispensing/{referenceCode}
+        // Looks up a prescription by reference code (Pharmacist only)
+        // ============================================================
         [HttpGet("api/dispensing/{referenceCode}")]
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> GetByReference(string referenceCode)
@@ -91,7 +105,10 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Dispensing a prescription
+        // ============================================================
+        // POST: api/dispensing/dispense
+        // Dispenses a prescription and updates stock (Pharmacist only)
+        // ============================================================
         [HttpPost("api/dispensing/dispense")]
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> Dispense([FromBody] DispenseRequest request)
@@ -138,6 +155,7 @@ namespace PharmTech.Controllers
                         message = $"Insufficient stock. Available: {inventory.Quantity}, Required: {requiredQty}"
                     });
 
+                // FIFO: Deduct from oldest batches first
                 var batches = await _context.MedicineBatches
                     .Where(b => b.MedId == prescription.MedId &&
                                 b.FacilityId == pharmacist.FacilityId.Value &&
@@ -189,6 +207,15 @@ namespace PharmTech.Controllers
                 _context.Receipts.Add(receipt);
                 await _context.SaveChangesAsync();
 
+                // ===== AUDIT LOG: Prescription dispensed =====
+                await _auditLogService.LogAsync(
+                    action: "Dispense",
+                    entity: "Prescription",
+                    entityId: prescription.PrescriptionId,
+                    details: $"Prescription {prescription.ReferenceCode} dispensed: {requiredQty} units of '{prescription.Medicine?.Name}' to patient '{prescription.Patient?.Name}'",
+                    facilityId: pharmacist.FacilityId.Value
+                );
+
                 return Ok(new
                 {
                     success = true,
@@ -218,7 +245,10 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Get dispense history for a prescription
+        // ============================================================
+        // GET: api/dispensing/prescription/{prescriptionId}/history
+        // Retrieves dispense history for a prescription
+        // ============================================================
         [HttpGet("api/dispensing/prescription/{prescriptionId}/history")]
         [Authorize(Roles = "Admin,Doctor,Pharmacist")]
         public async Task<IActionResult> GetDispenseHistory(int prescriptionId)
@@ -249,7 +279,10 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Get facilities for the logged-in pharmacist
+        // ============================================================
+        // GET: api/dispensing/facilities
+        // Gets facilities for the logged-in pharmacist
+        // ============================================================
         [HttpGet("api/dispensing/facilities")]
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> GetFacilities()
@@ -259,7 +292,6 @@ namespace PharmTech.Controllers
                 var pharmacistId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 var pharmacist = await _context.Users.FindAsync(pharmacistId);
 
-                // Pharmacists can only see their own facility
                 if (pharmacist != null && pharmacist.FacilityId.HasValue)
                 {
                     var facility = await _context.Facilities
@@ -276,46 +308,6 @@ namespace PharmTech.Controllers
             {
                 _logger.LogError(ex, "Error fetching facilities");
                 return StatusCode(500, new { success = false, message = "An error occurred" });
-            }
-        }
-
-        // Check stock levels and create low stock alerts if necessary
-        private async Task CheckLowStockAndAlert(int medId, int facilityId, int currentStock)
-        {
-            var medicine = await _context.Medicines.FindAsync(medId);
-            if (medicine == null) return;
-
-            var threshold = await _context.StockThresholds
-                .FirstOrDefaultAsync(t => t.MedId == medId && t.FacilityId == facilityId);
-
-            var minimumLevel = threshold?.MinimumStockLevel ?? medicine.BufferQty;
-
-            if (currentStock <= minimumLevel)
-            {
-                var existingAlert = await _context.SystemAlerts
-                    .FirstOrDefaultAsync(a =>
-                        a.AlertType == "LowStock" &&
-                        a.MedId == medId &&
-                        a.FacilityId == facilityId &&
-                        a.CreatedAt.Date == DateTime.Today);
-
-                if (existingAlert == null)
-                {
-                    var facility = await _context.Facilities.FindAsync(facilityId);
-                    var alert = new SystemAlert
-                    {
-                        AlertType = "LowStock",
-                        Message = $"Low stock alert: {medicine.Name} at {(facility?.Name ?? "Facility")} - " +
-                                  $"Only {currentStock} units remaining (minimum: {minimumLevel})",
-                        MedId = medId,
-                        FacilityId = facilityId,
-                        IsRead = false,
-                        CreatedAt = DateTime.Now
-                    };
-
-                    _context.SystemAlerts.Add(alert);
-                    await _context.SaveChangesAsync();
-                }
             }
         }
     }

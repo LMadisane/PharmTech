@@ -1,0 +1,127 @@
+﻿@{
+    ViewData["Title"] = "Disposal Records";
+}
+
+<div x-data="disposalApp()" x-init="init()" class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">🗑️Disposal Records</h1>
+            <p class="text-gray-700 dark:text-gray-300 text-sm">Track medicines that have been disposed of</p>
+        </div>
+        @if (User.IsInRole("Pharmacist"))
+        {
+            <a href="/DisposalRecord/Create"
+               class="bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-xl transition duration-200 text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                New Disposal
+            </a>
+        }
+    </div>
+
+    <!-- Disposals Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Medicine</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Facility</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Quantity</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Reason</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Recorded By</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Notes</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    <template x-for="d in disposals" :key="d.disposalId">
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                            <td class="px-6 py-4 text-sm text-gray-800 dark:text-gray-200" x-text="d.disposalId"></td>
+                            <td class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-200" x-text="d.medicineName"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="d.facilityName"></td>
+                            <td class="px-6 py-4 text-sm font-semibold text-gray-800 dark:text-gray-200" x-text="d.quantity"></td>
+                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full"
+                                      :class="d.reason === 'Recalled' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                                              d.reason === 'Expired' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                                              'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'">
+                                    <span x-text="d.reason"></span>
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400" x-text="d.recordedByName"></td>
+                            <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400" x-text="formatDate(d.recordedAt)"></td>
+                            <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate" x-text="d.notes || '—'"></td>
+                        </tr>
+                    </template>
+                    <tr x-show="loading && disposals.length === 0">
+                        <td colspan="8" class="px-6 py-12 text-center">
+                            <div class="flex justify-center">
+                                <svg class="animate-spin h-8 w-8 text-teal-500" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                            </div>
+                            <p class="mt-2 text-gray-400 text-sm">Loading disposal records...</p>
+                        </td>
+                    </tr>
+                    <tr x-show="!loading && disposals.length === 0">
+                        <td colspan="8" class="px-6 py-12 text-center text-gray-400 dark:text-gray-500">
+                            <span class="text-4xl">📭</span>
+                            <p class="mt-2">No disposal records found</p>
+                            <p class="text-xs mt-1">Disposals are created when expired or recalled medicine is removed from stock.</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+    <script>
+        function disposalApp() {
+            return {
+                disposals: [],
+                loading: false,
+
+                init() {
+                    this.loadDisposals();
+                },
+
+                async loadDisposals() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/Disposal');
+                        const result = await response.json();
+                        if (result.success) {
+                            this.disposals = result.disposals || [];
+                        }
+                    } catch (err) {
+                        console.error('Error loading disposals:', err);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                formatDate(dateString) {
+                    if (!dateString) return 'N/A';
+                    const date = new Date(dateString);
+                    return date.toLocaleString('en-ZA', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+            }
+        }
+    </script>
+}

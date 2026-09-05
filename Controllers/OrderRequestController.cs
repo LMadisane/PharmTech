@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
 using PharmTech.Models;
+using PharmTech.Services;
 using System.Security.Claims;
 
 namespace PharmTech.Controllers
@@ -12,16 +13,20 @@ namespace PharmTech.Controllers
     {
         private readonly PharmTechContext _context;
         private readonly ILogger<OrderRequestController> _logger;
+        private readonly IAuditLogService _auditLogService;
 
-        public OrderRequestController(PharmTechContext context, ILogger<OrderRequestController> logger)
+        public OrderRequestController(
+            PharmTechContext context,
+            ILogger<OrderRequestController> logger,
+            IAuditLogService auditLogService)
         {
             _context = context;
             _logger = logger;
+            _auditLogService = auditLogService;
         }
 
         // ========= VIEWS
 
-        // Pharmacist views own orders, Admin: view all
         public async Task<IActionResult> Index()
         {
             var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
@@ -46,7 +51,6 @@ namespace PharmTech.Controllers
             return View(orders);
         }
 
-        // Pharmacist: create new order request
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> CreateRequest()
         {
@@ -59,7 +63,6 @@ namespace PharmTech.Controllers
             return View();
         }
 
-        // Pharmacist: create new order request
         [HttpPost]
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> CreateRequest(OrderRequest order)
@@ -68,7 +71,6 @@ namespace PharmTech.Controllers
             order.Status = "Pending";
             order.RequestedAt = DateTime.Now;
 
-            // Clear ModelState errors for system-assigned fields
             ModelState.Remove("Status");
             ModelState.Remove("RequestedAt");
             ModelState.Remove("RequestedById");
@@ -99,11 +101,20 @@ namespace PharmTech.Controllers
             _context.OrderRequests.Add(order);
             await _context.SaveChangesAsync();
 
+            // AUDIT LOG: Order request created
+            var medicine = await _context.Medicines.FindAsync(order.MedId);
+            await _auditLogService.LogAsync(
+                action: "CreateRequest",
+                entity: "OrderRequest",
+                entityId: order.OrderId,
+                details: $"Order request created for '{medicine?.Name ?? "Unknown"}' (Qty: {order.Quantity})",
+                facilityId: order.FacilityId
+            );
+
             TempData["Success"] = "Order request submitted successfully!";
             return RedirectToAction(nameof(Index));
         }
 
-        // Admin: view all pending requests
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AdminIndex()
         {
@@ -117,7 +128,6 @@ namespace PharmTech.Controllers
             return View(orders);
         }
 
-        // Admin: view all orders
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AllOrders()
         {
@@ -133,6 +143,7 @@ namespace PharmTech.Controllers
 
         // ======== API ENDPOINTS
 
+        // Retrieves all order requests filtered by role/facility
         [HttpGet("api/orderrequest")]
         public async Task<IActionResult> GetOrders()
         {
@@ -177,17 +188,16 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Creates a new order request (Pharmacist only)
         [HttpPost("api/orderrequest")]
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> CreateOrder([FromBody] OrderRequest order)
         {
             try
             {
-                // Set system-assigned values first
                 order.Status = "Pending";
                 order.RequestedAt = DateTime.Now;
 
-                // Clear system-assigned fields from ModelState before validating
                 ModelState.Remove("Status");
                 ModelState.Remove("RequestedAt");
                 ModelState.Remove("RequestedById");
@@ -213,6 +223,16 @@ namespace PharmTech.Controllers
                 _context.OrderRequests.Add(order);
                 await _context.SaveChangesAsync();
 
+                // AUDIT LOG: Order request created (API)
+                var medicine = await _context.Medicines.FindAsync(order.MedId);
+                await _auditLogService.LogAsync(
+                    action: "CreateRequest",
+                    entity: "OrderRequest",
+                    entityId: order.OrderId,
+                    details: $"Order request created for '{medicine?.Name ?? "Unknown"}' (Qty: {order.Quantity})",
+                    facilityId: order.FacilityId
+                );
+
                 return Ok(new
                 {
                     success = true,
@@ -228,13 +248,17 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Approves a pending order request (Admin only)
         [HttpPut("api/orderrequest/{id}/approve")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ApproveOrder(int id)
         {
             try
             {
-                var order = await _context.OrderRequests.FindAsync(id);
+                var order = await _context.OrderRequests
+                    .Include(o => o.Medicine)
+                    .FirstOrDefaultAsync(o => o.OrderId == id);
+
                 if (order == null)
                     return NotFound(new { success = false, message = "Order not found" });
 
@@ -247,6 +271,15 @@ namespace PharmTech.Controllers
 
                 await _context.SaveChangesAsync();
 
+                // AUDIT LOG: Order approved
+                await _auditLogService.LogAsync(
+                    action: "ApproveOrder",
+                    entity: "OrderRequest",
+                    entityId: order.OrderId,
+                    details: $"Order request for '{order.Medicine?.Name ?? "Unknown"}' (Qty: {order.Quantity}) approved",
+                    facilityId: order.FacilityId
+                );
+
                 return Ok(new { success = true, message = "Order approved" });
             }
             catch (Exception ex)
@@ -256,13 +289,17 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Rejects a pending order request (Admin only)
         [HttpPut("api/orderrequest/{id}/reject")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> RejectOrder(int id)
         {
             try
             {
-                var order = await _context.OrderRequests.FindAsync(id);
+                var order = await _context.OrderRequests
+                    .Include(o => o.Medicine)
+                    .FirstOrDefaultAsync(o => o.OrderId == id);
+
                 if (order == null)
                     return NotFound(new { success = false, message = "Order not found" });
 
@@ -275,6 +312,15 @@ namespace PharmTech.Controllers
 
                 await _context.SaveChangesAsync();
 
+                // ===== AUDIT LOG: Order rejected =====
+                await _auditLogService.LogAsync(
+                    action: "RejectOrder",
+                    entity: "OrderRequest",
+                    entityId: order.OrderId,
+                    details: $"Order request for '{order.Medicine?.Name ?? "Unknown"}' (Qty: {order.Quantity}) rejected",
+                    facilityId: order.FacilityId
+                );
+
                 return Ok(new { success = true, message = "Order rejected" });
             }
             catch (Exception ex)
@@ -284,6 +330,7 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Fulfills an approved order and adds stock to inventory (Admin only)
         [HttpPut("api/orderrequest/{id}/fulfill")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> FulfillOrder(int id)
@@ -334,6 +381,15 @@ namespace PharmTech.Controllers
                 order.FulfilledAt = DateTime.Now;
 
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: Order fulfilled
+                await _auditLogService.LogAsync(
+                    action: "FulfillOrder",
+                    entity: "OrderRequest",
+                    entityId: order.OrderId,
+                    details: $"Order request for '{order.Medicine?.Name ?? "Unknown"}' (Qty: {order.Quantity}) fulfilled, stock added",
+                    facilityId: order.FacilityId
+                );
 
                 return Ok(new { success = true, message = "Order fulfilled, stock added" });
             }
