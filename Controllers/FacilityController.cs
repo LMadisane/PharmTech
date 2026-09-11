@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
 using PharmTech.Models;
 using PharmTech.Models.DTOs;
+using PharmTech.Services;
 
 namespace PharmTech.Controllers
 {
@@ -12,11 +13,16 @@ namespace PharmTech.Controllers
     {
         private readonly PharmTechContext _context;
         private readonly ILogger<FacilityController> _logger;
+        private readonly IAuditLogService _auditLogService;
 
-        public FacilityController(PharmTechContext context, ILogger<FacilityController> logger)
+        public FacilityController(
+            PharmTechContext context,
+            ILogger<FacilityController> logger,
+            IAuditLogService auditLogService)
         {
             _context = context;
             _logger = logger;
+            _auditLogService = auditLogService;
         }
 
         // ======== VIEWS
@@ -39,7 +45,7 @@ namespace PharmTech.Controllers
 
         // ======== API ENDPOINTS
 
-        // Getting all facilities
+        // Retrieves all facilities
         [HttpGet("api/facility")]
         public async Task<IActionResult> GetFacilities()
         {
@@ -65,7 +71,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Getting a single facility by ID
+        // Retrieves a single facility by ID
         [HttpGet("api/facility/{id}")]
         public async Task<IActionResult> GetFacility(int id)
         {
@@ -98,7 +104,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Create a new facility
+        // Creates a new facility
         [HttpPost("api/facility")]
         public async Task<IActionResult> CreateFacility([FromBody] CreateFacilityRequest request)
         {
@@ -124,6 +130,15 @@ namespace PharmTech.Controllers
                 _context.Facilities.Add(facility);
                 await _context.SaveChangesAsync();
 
+                // AUDIT LOG: Facility created
+                await _auditLogService.LogAsync(
+                    action: "CreateFacility",
+                    entity: "Facility",
+                    entityId: facility.FacilityId,
+                    details: $"Facility '{facility.Name}' created (Address: {facility.Address})",
+                    facilityId: facility.FacilityId
+                );
+
                 return Ok(new
                 {
                     success = true,
@@ -144,7 +159,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Update an existing facility
+        // Updates an existing facility
         [HttpPut("api/facility/{id}")]
         public async Task<IActionResult> UpdateFacility(int id, [FromBody] UpdateFacilityRequest request)
         {
@@ -162,11 +177,30 @@ namespace PharmTech.Controllers
                 if (existingFacility != null)
                     return BadRequest(new { success = false, message = "Another facility with this name already exists" });
 
+                // Capture old values for audit
+                var oldName = facility.Name;
+                var oldAddress = facility.Address;
+                var oldContactInfo = facility.ContactInfo;
+
                 facility.Name = request.Name;
                 facility.Address = request.Address;
                 facility.ContactInfo = request.ContactInfo;
 
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: Facility updated
+                var details = $"Facility '{oldName}' updated. ";
+                if (oldName != request.Name) details += $"Name: '{oldName}' → '{request.Name}'. ";
+                if (oldAddress != request.Address) details += $"Address: '{oldAddress}' → '{request.Address}'. ";
+                if (oldContactInfo != request.ContactInfo) details += $"Contact: '{oldContactInfo}' → '{request.ContactInfo}'. ";
+
+                await _auditLogService.LogAsync(
+                    action: "UpdateFacility",
+                    entity: "Facility",
+                    entityId: facility.FacilityId,
+                    details: details.Trim(),
+                    facilityId: facility.FacilityId
+                );
 
                 return Ok(new
                 {
@@ -188,7 +222,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Deleting a facility
+        // Deletes a facility
         [HttpDelete("api/facility/{id}")]
         public async Task<IActionResult> DeleteFacility(int id)
         {
@@ -208,8 +242,17 @@ namespace PharmTech.Controllers
                     return BadRequest(new { success = false, message = "Cannot delete facility with associated users or inventory" });
                 }
 
+                var facilityName = facility.Name;
                 _context.Facilities.Remove(facility);
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: Facility deleted
+                await _auditLogService.LogAsync(
+                    action: "DeleteFacility",
+                    entity: "Facility",
+                    entityId: id,
+                    details: $"Facility '{facilityName}' (ID: {id}) deleted"
+                );
 
                 return Ok(new { success = true, message = "Facility deleted successfully" });
             }

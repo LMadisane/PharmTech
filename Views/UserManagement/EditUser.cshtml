@@ -74,11 +74,11 @@
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Status</label>
                 <div class="flex items-center gap-4">
                     <label class="inline-flex items-center cursor-pointer">
-                        <input type="radio" x-model="form.isActive" :value="true" class="w-4 h-4 text-teal-600 focus:ring-teal-500">
+                        <input type="radio" x-model.boolean="form.isActive" value="true" class="w-4 h-4 text-teal-600 focus:ring-teal-500">
                         <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Active</span>
                     </label>
                     <label class="inline-flex items-center cursor-pointer">
-                        <input type="radio" x-model="form.isActive" :value="false" class="w-4 h-4 text-red-600 focus:ring-red-500">
+                        <input type="radio" x-model.boolean="form.isActive" value="false" class="w-4 h-4 text-red-600 focus:ring-red-500">
                         <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Inactive</span>
                     </label>
                 </div>

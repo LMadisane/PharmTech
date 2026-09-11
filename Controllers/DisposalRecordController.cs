@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
 using PharmTech.Models;
+using PharmTech.Services;
 using System.Security.Claims;
 
 namespace PharmTech.Controllers
@@ -12,11 +13,16 @@ namespace PharmTech.Controllers
     {
         private readonly PharmTechContext _context;
         private readonly ILogger<DisposalRecordController> _logger;
+        private readonly IAuditLogService _auditLogService;
 
-        public DisposalRecordController(PharmTechContext context, ILogger<DisposalRecordController> logger)
+        public DisposalRecordController(
+            PharmTechContext context,
+            ILogger<DisposalRecordController> logger,
+            IAuditLogService auditLogService)
         {
             _context = context;
             _logger = logger;
+            _auditLogService = auditLogService;
         }
 
         // ========= VIEWS
@@ -43,25 +49,22 @@ namespace PharmTech.Controllers
         {
             try
             {
-                // Get current user's role and facility
                 var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 var user = await _context.Users.FindAsync(userId);
 
-                // Build base query with related data
                 var query = _context.DisposalRecords
                     .Include(d => d.Medicine)
                     .Include(d => d.Facility)
                     .Include(d => d.RecordedBy)
                     .AsQueryable();
 
-                // Non‑Admins see only their facility's disposals
+                // Non-Admins see only their facility's disposals
                 if (userRole != "Admin" && user != null && user.FacilityId.HasValue)
                 {
                     query = query.Where(d => d.FacilityId == user.FacilityId.Value);
                 }
 
-                // Project to anonymous type for cleaner JSON
                 var disposals = await query
                     .OrderByDescending(d => d.RecordedAt)
                     .Select(d => new
@@ -88,7 +91,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Creates a new disposal record and updates stock levels
+        // Only pharmacist Creates a new disposal record and updates stock levels
         [HttpPost("api/disposal")]
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> DisposeStock([FromBody] DisposalRecord record)
@@ -157,6 +160,15 @@ namespace PharmTech.Controllers
                 // Add disposal record
                 _context.DisposalRecords.Add(record);
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: Stock disposed
+                await _auditLogService.LogAsync(
+                    action: "DisposeStock",
+                    entity: "DisposalRecord",
+                    entityId: record.DisposalId,
+                    details: $"Disposed {record.Quantity} units of '{medicine.Name}' (Reason: {record.Reason})",
+                    facilityId: record.FacilityId
+                );
 
                 _logger.LogInformation(
                     "Disposal recorded: Medicine {MedicineName}, Quantity {Quantity}, Reason {Reason}, Facility {FacilityId}",

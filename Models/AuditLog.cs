@@ -8,8 +8,8 @@ namespace PharmTech.Models
         [Key]
         public int AuditLogId { get; set; }
 
-        [Required]
-        public int UserId { get; set; }
+        // Change from 'int' to 'int?' (nullable)
+        public int? UserId { get; set; }
 
         [ForeignKey("UserId")]
         public virtual User? User { get; set; }

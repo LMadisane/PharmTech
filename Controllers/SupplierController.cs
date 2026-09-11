@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
 using PharmTech.Models;
+using PharmTech.Services;
 
 namespace PharmTech.Controllers
 {
@@ -10,11 +11,16 @@ namespace PharmTech.Controllers
     {
         private readonly PharmTechContext _context;
         private readonly ILogger<SupplierController> _logger;
+        private readonly IAuditLogService _auditLogService;
 
-        public SupplierController(PharmTechContext context, ILogger<SupplierController> logger)
+        public SupplierController(
+            PharmTechContext context,
+            ILogger<SupplierController> logger,
+            IAuditLogService auditLogService)
         {
             _context = context;
             _logger = logger;
+            _auditLogService = auditLogService;
         }
 
         // ======== VIEWS
@@ -45,7 +51,7 @@ namespace PharmTech.Controllers
 
         // ========= API ENDPOINTS
 
-        // Create a new supplier (Admin only)
+        // Only Admin can create a new supplier
         [HttpPost("api/supplier")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateSupplierApi([FromBody] Supplier supplier)
@@ -58,6 +64,14 @@ namespace PharmTech.Controllers
                 _context.Suppliers.Add(supplier);
                 await _context.SaveChangesAsync();
 
+                // AUDIT LOG: Supplier created
+                await _auditLogService.LogAsync(
+                    action: "CreateSupplier",
+                    entity: "Supplier",
+                    entityId: supplier.SupplierId,
+                    details: $"Supplier '{supplier.Name}' created (Contact: {supplier.ContactInfo})"
+                );
+
                 return Ok(new { success = true, message = "Supplier created successfully", data = supplier });
             }
             catch (Exception ex)
@@ -67,7 +81,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Getting all suppliers as Admin, Pharmacist
+        // Admin and pharmacist retrieve all suppliers
         [HttpGet("api/supplier")]
         [Authorize(Roles = "Admin,Pharmacist")]
         public async Task<IActionResult> GetSuppliersApi()
@@ -87,7 +101,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Getting a specific supplier by ID as Admin, Pharmacist
+        // Retrieves a single supplier by ID
         [HttpGet("api/supplier/{id}")]
         [Authorize(Roles = "Admin,Pharmacist")]
         public async Task<IActionResult> GetSupplierApi(int id)
@@ -100,7 +114,7 @@ namespace PharmTech.Controllers
             return Ok(new { success = true, supplier });
         }
 
-        // Putting an update to a specific supplier by ID as Admin
+        // Only Admin updates a supplier
         [HttpPut("api/supplier/{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateSupplierApi(int id, [FromBody] Supplier updated)
@@ -112,11 +126,29 @@ namespace PharmTech.Controllers
                 if (supplier == null)
                     return NotFound(new { success = false, message = "Supplier not found" });
 
+                // Capture old values for audit
+                var oldName = supplier.Name;
+                var oldContactInfo = supplier.ContactInfo;
+                var oldAddress = supplier.Address;
+
                 supplier.Name = updated.Name;
                 supplier.ContactInfo = updated.ContactInfo;
                 supplier.Address = updated.Address;
 
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: Supplier updated
+                var details = $"Supplier '{oldName}' updated. ";
+                if (oldName != updated.Name) details += $"Name: '{oldName}' → '{updated.Name}'. ";
+                if (oldContactInfo != updated.ContactInfo) details += $"Contact: '{oldContactInfo}' → '{updated.ContactInfo}'. ";
+                if (oldAddress != updated.Address) details += $"Address: '{oldAddress}' → '{updated.Address}'. ";
+
+                await _auditLogService.LogAsync(
+                    action: "UpdateSupplier",
+                    entity: "Supplier",
+                    entityId: supplier.SupplierId,
+                    details: details.Trim()
+                );
 
                 return Ok(new { success = true, message = "Supplier updated successfully", data = supplier });
             }
@@ -127,7 +159,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Deleting a specific supplier by ID as Admin, with check for associated order requests
+        // Only Admin can delete a supplier
         [HttpDelete("api/supplier/{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteSupplierApi(int id)
@@ -146,8 +178,17 @@ namespace PharmTech.Controllers
                     return BadRequest(new { success = false, message = "Cannot delete supplier with associated order requests" });
                 }
 
+                var supplierName = supplier.Name;
                 _context.Suppliers.Remove(supplier);
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: Supplier deleted
+                await _auditLogService.LogAsync(
+                    action: "DeleteSupplier",
+                    entity: "Supplier",
+                    entityId: id,
+                    details: $"Supplier '{supplierName}' (ID: {id}) deleted"
+                );
 
                 return Ok(new { success = true, message = "Supplier deleted successfully" });
             }
@@ -158,8 +199,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Form post actions for creating and editing suppliers for Admin only
-
+        // Creates a new supplier from the MVC form
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateSupplier(Supplier supplier)
@@ -168,12 +208,22 @@ namespace PharmTech.Controllers
             {
                 _context.Suppliers.Add(supplier);
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: Supplier created via form
+                await _auditLogService.LogAsync(
+                    action: "CreateSupplier",
+                    entity: "Supplier",
+                    entityId: supplier.SupplierId,
+                    details: $"Supplier '{supplier.Name}' created (Contact: {supplier.ContactInfo})"
+                );
+
                 TempData["Success"] = "Supplier created successfully";
                 return RedirectToAction(nameof(Index));
             }
             return View(supplier);
         }
 
+        // Updates an existing supplier from the MVC form
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> EditSupplier(Supplier supplier)
@@ -182,6 +232,15 @@ namespace PharmTech.Controllers
             {
                 _context.Suppliers.Update(supplier);
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: Supplier updated via form
+                await _auditLogService.LogAsync(
+                    action: "UpdateSupplier",
+                    entity: "Supplier",
+                    entityId: supplier.SupplierId,
+                    details: $"Supplier '{supplier.Name}' updated (Contact: {supplier.ContactInfo}, Address: {supplier.Address})"
+                );
+
                 TempData["Success"] = "Supplier updated successfully";
                 return RedirectToAction(nameof(Index));
             }

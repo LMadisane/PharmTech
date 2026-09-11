@@ -23,36 +23,34 @@ function formatDateTime(dateString) {
     });
 }
 
-// Generic fetch wrapper for API calls
-async function apiFetch(url, method = 'GET', body = null) {
-    const options = {
-        method,
-        headers: { 'Content-Type': 'application/json' }
+/*  Global fetch override to automatically include the 
+    Anti-forgery token for POST, PUT, DELETE, PATCH requests.
+    This ensures CSRF protection works with AJAX calls.*/
+(function () {
+    const originalFetch = window.fetch;
+
+    window.fetch = function (url, options = {}) {
+        const method = (options.method || 'GET').toUpperCase();
+
+        // Only add token for state-changing methods
+        if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            const token = tokenInput ? tokenInput.value : null;
+
+            if (token) {
+                options.headers = options.headers || {};
+                // Headers could be a Headers object or plain object
+                if (options.headers instanceof Headers) {
+                    options.headers.set('RequestVerificationToken', token);
+                } else {
+                    options.headers['RequestVerificationToken'] = token;
+                }
+            }
+        }
+
+        return originalFetch(url, options);
     };
-
-    if (body) options.body = JSON.stringify(body);
-
-    try {
-        const response = await fetch(url, options);
-
-        // Handle unauthorized or forbidden responses
-        if (response.status === 401) {
-            window.location.href = '/account/login';
-            return null;
-        }
-
-        if (response.status === 403) {
-            showToast('You do not have permission to perform this action.', 'error');
-            return null;
-        }
-
-        return await response.json();
-    } catch (err) {
-        console.error('API error:', err);
-        showToast('An unexpected error occurred.', 'error');
-        return null;
-    }
-}
+})();
 
 // Global toast trigger (works with Alpine.js toastStore)
 function showToast(message, type = 'info') {

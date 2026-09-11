@@ -105,49 +105,84 @@ namespace PharmTech.Services
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<PharmTechContext>();
 
-            // Check for medicines expiring in 30, 60, or 90 days
+            // Check for medicines expiring in 30, 60, or 90 days, AND already expired
             var warningThresholds = new[] { 30, 60, 90 };
 
             var batches = await db.MedicineBatches
                 .Include(b => b.Medicine)
-                .Where(b => b.ExpiryDate > DateTime.Today && b.Quantity > 0)
+                .Where(b => b.Quantity > 0)  // Check ALL batches
                 .ToListAsync(cancellationToken);
 
             foreach (var batch in batches)
             {
                 var daysUntilExpiry = (batch.ExpiryDate - DateTime.Today).Days;
+                string alertType = "ExpiryWarning";
+                string message;
 
-                foreach (var days in warningThresholds)
+                // Handle expired batches
+                if (daysUntilExpiry < 0)
                 {
-                    if (daysUntilExpiry <= days)
+                    alertType = "ExpiredStock";
+                    message = $"EXPIRED STOCK: {batch.Medicine!.Name} (Lot: {batch.LotNumber}) expired on " +
+                              $"{batch.ExpiryDate:dd MMM yyyy}. Quantity: {batch.Quantity}. Immediate disposal required.";
+                }
+                else
+                {
+                    // Check each threshold (30, 60, 90 days)
+                    bool alerted = false;
+                    foreach (var days in warningThresholds)
                     {
-                        var message = $"Expiry warning: {batch.Medicine!.Name} " +
+                        if (daysUntilExpiry <= days && !alerted)
+                        {
+                            message = $"Expiry warning: {batch.Medicine!.Name} " +
                                       $"(Lot: {batch.LotNumber}) expires in " +
                                       $"{daysUntilExpiry} day(s) on " +
                                       $"{batch.ExpiryDate:dd MMM yyyy}";
+                            alerted = true;
 
-                        _logger.LogInformation(message);
+                            var alreadyAlerted = await db.SystemAlerts.AnyAsync(a =>
+                                a.AlertType == "ExpiryWarning" &&
+                                a.MedId == batch.MedId &&
+                                a.CreatedAt.Date == DateTime.Today,
+                                cancellationToken);
 
-                        var alreadyAlerted = await db.SystemAlerts.AnyAsync(a =>
-                            a.AlertType == "ExpiryWarning" &&
-                            a.MedId == batch.MedId &&
-                            a.CreatedAt.Date == DateTime.Today,
-                            cancellationToken);
-
-                        if (!alreadyAlerted)
-                        {
-                            db.SystemAlerts.Add(new SystemAlert
+                            if (!alreadyAlerted)
                             {
-                                AlertType = "ExpiryWarning",
-                                Message = message,
-                                MedId = batch.MedId,
-                                FacilityId = batch.FacilityId,
-                                IsRead = false,
-                                CreatedAt = DateTime.Now
-                            });
+                                db.SystemAlerts.Add(new SystemAlert
+                                {
+                                    AlertType = alertType,
+                                    Message = message,
+                                    MedId = batch.MedId,
+                                    FacilityId = batch.FacilityId,
+                                    IsRead = false,
+                                    CreatedAt = DateTime.Now
+                                });
+                            }
                         }
+                    }
+                }
 
-                        break;
+                // Handle expired batches separately (if not already handled above)
+                if (daysUntilExpiry < 0)
+                {
+                    var alreadyAlerted = await db.SystemAlerts.AnyAsync(a =>
+                        a.AlertType == "ExpiredStock" &&
+                        a.MedId == batch.MedId &&
+                        a.CreatedAt.Date == DateTime.Today,
+                        cancellationToken);
+
+                    if (!alreadyAlerted)
+                    {
+                        db.SystemAlerts.Add(new SystemAlert
+                        {
+                            AlertType = "ExpiredStock",
+                            Message = $"EXPIRED STOCK: {batch.Medicine!.Name} (Lot: {batch.LotNumber}) expired on " +
+                                      $"{batch.ExpiryDate:dd MMM yyyy}. Quantity: {batch.Quantity}. Immediate disposal required.",
+                            MedId = batch.MedId,
+                            FacilityId = batch.FacilityId,
+                            IsRead = false,
+                            CreatedAt = DateTime.Now
+                        });
                     }
                 }
             }

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
 using PharmTech.Models;
 using PharmTech.Models.DTOs;
+using PharmTech.Services;
 using System.Security.Claims;
 
 namespace PharmTech.Controllers
@@ -13,11 +14,16 @@ namespace PharmTech.Controllers
     {
         private readonly PharmTechContext _context;
         private readonly ILogger<PrescriptionController> _logger;
+        private readonly IAuditLogService _auditLogService;
 
-        public PrescriptionController(PharmTechContext context, ILogger<PrescriptionController> logger)
+        public PrescriptionController(
+            PharmTechContext context,
+            ILogger<PrescriptionController> logger,
+            IAuditLogService auditLogService)
         {
             _context = context;
             _logger = logger;
+            _auditLogService = auditLogService;
         }
 
         // ======== VIEWS
@@ -42,7 +48,8 @@ namespace PharmTech.Controllers
         }
 
         // ------- API ENDPOINTS
-
+        
+        // Retrieves prescriptions with optional filtering
         [HttpGet("api/prescription")]
         public async Task<IActionResult> GetPrescriptions(
             [FromQuery] string? status,
@@ -107,6 +114,7 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Retrieves a single prescription by ID
         [HttpGet("api/prescription/{id}")]
         public async Task<IActionResult> GetPrescription(int id)
         {
@@ -170,7 +178,8 @@ namespace PharmTech.Controllers
                 return Ok(new { success = false, message = "An error occurred" });
             }
         }
-
+        
+        // Doctor creates a new prescription
         [HttpPost("api/prescription")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> CreatePrescription([FromBody] PrescriptionRequest request)
@@ -196,7 +205,7 @@ namespace PharmTech.Controllers
                 if (!doctor.FacilityId.HasValue)
                     return BadRequest(new { success = false, message = "You are not assigned to any facility. Contact your administrator." });
 
-                // Patients are just Users referenced by ID — no role filter needed
+                // Patients are just Users referenced by ID
                 var patient = await _context.Users
                     .FirstOrDefaultAsync(u => u.UserId == request.PatientId);
 
@@ -235,6 +244,15 @@ namespace PharmTech.Controllers
                 _context.Prescriptions.Add(prescription);
                 await _context.SaveChangesAsync();
 
+                // AUDIT LOG: Prescription created
+                await _auditLogService.LogAsync(
+                    action: "CreatePrescription",
+                    entity: "Prescription",
+                    entityId: prescription.PrescriptionId,
+                    details: $"Prescription {referenceCode} created for patient '{patient.Name}' - {request.DosagePerDay}x/day for {request.DurationDays} days of '{medicine.Name}'",
+                    facilityId: doctor.FacilityId.Value
+                );
+
                 _logger.LogInformation(
                     "Prescription {ReferenceCode} created by Doctor {DoctorId} for Patient {PatientId}",
                     referenceCode, doctorId, request.PatientId);
@@ -260,7 +278,6 @@ namespace PharmTech.Controllers
             }
             catch (Exception ex)
             {
-                // Log the full exception including inner exception for debugging
                 _logger.LogError(ex, "Error creating prescription: {Message} | Inner: {Inner}",
                     ex.Message, ex.InnerException?.Message);
 
@@ -273,14 +290,13 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Getting all patients for the prescription creation form
+        // Retrieves all active patients for the prescription form
         [HttpGet("api/prescription/patients")]
-        [Authorize(Roles = "Doctor,Pharmacist")]  // Allowing both Doctors and Pharmacists
+        [Authorize(Roles = "Doctor,Pharmacist")]
         public async Task<IActionResult> GetPatients()
         {
             try
             {
-                // Patients are global, all facilities can see all patients
                 var patients = await _context.Users
                     .Where(u => u.Role == "Patient" && u.IsActive)
                     .Select(u => new { u.UserId, u.Name, u.Email })
@@ -337,6 +353,7 @@ namespace PharmTech.Controllers
             }
         }
 
+        // Doctor cancels a pending prescription
         [HttpPut("api/prescription/{id}/cancel")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> CancelPrescription(int id)
@@ -358,8 +375,21 @@ namespace PharmTech.Controllers
                 if (prescription.Status == "Dispensed")
                     return BadRequest(new { success = false, message = "Cannot cancel a dispensed prescription" });
 
+                // Capture previous status for audit
+                var previousStatus = prescription.Status;
                 prescription.Status = "Cancelled";
                 await _context.SaveChangesAsync();
+
+                // AUDIT LOG: Prescription cancelled
+                await _auditLogService.LogAsync(
+                    action: "CancelPrescription",
+                    entity: "Prescription",
+                    entityId: prescription.PrescriptionId,
+                    details: $"Prescription {prescription.ReferenceCode} cancelled (was: {previousStatus})",
+                    previousValue: previousStatus,
+                    newValue: "Cancelled",
+                    facilityId: prescription.FacilityId
+                );
 
                 return Ok(new { success = true, message = "Prescription cancelled successfully" });
             }

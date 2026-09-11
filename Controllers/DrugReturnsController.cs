@@ -164,12 +164,14 @@ namespace PharmTech.Controllers
             }
         }
 
-        // Approves a return request, restocks or disposes accordingly
+        // Approving a return request, restocks or disposes accordingly
         [HttpPut("api/drugreturns/{id}/approve")]
-        public async Task<IActionResult> ApproveReturn(int id, [FromQuery] int processedById)
+        public async Task<IActionResult> ApproveReturn(int id)  
         {
             try
             {
+                var processedById = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");  // Using authenticated user ID
+
                 var returnItem = await _context.DrugReturns
                     .Include(r => r.Medicine)
                     .Include(r => r.Patient)
@@ -182,9 +184,9 @@ namespace PharmTech.Controllers
                     return BadRequest(new { success = false, message = "Already processed" });
 
                 returnItem.Status = "Approved";
-                returnItem.ProcessedById = processedById;
+                returnItem.ProcessedById = processedById;  // Using authenticated user
 
-                // If restockable, add back to inventory
+                // --- If restockable, add back to inventory
                 if (returnItem.IsRestockable)
                 {
                     var inventory = await _context.InventoryItems
@@ -209,7 +211,7 @@ namespace PharmTech.Controllers
                 }
                 else
                 {
-                    // If NOT restockable, log a disposal record
+                    // --- If NOT restockable, log a disposal record
                     var disposal = new DisposalRecord
                     {
                         MedId = returnItem.MedId,
@@ -217,18 +219,18 @@ namespace PharmTech.Controllers
                         Quantity = returnItem.Quantity,
                         Reason = "Patient Return (Not Restockable)",
                         Notes = $"Return ID: {returnItem.ReturnId} - Reason: {returnItem.Reason}",
-                        RecordedById = processedById,
+                        RecordedById = processedById,  // Using authenticated user
                         RecordedAt = DateTime.Now
                     };
                     _context.DisposalRecords.Add(disposal);
                 }
 
-                // Generate receipt
+                // --- Generate receipt
                 var receipt = new Receipt
                 {
                     ReceiptNumber = $"RET-{DateTime.Now:yyyyMMdd}-{returnItem.ReturnId}",
                     ReceiptType = "Return",
-                    GeneratedById = processedById,
+                    GeneratedById = processedById,  // Using authenticated user
                     PatientName = returnItem.Patient?.Name ?? "Unknown",
                     MedicineName = returnItem.Medicine?.Name ?? "Unknown",
                     Quantity = returnItem.Quantity,
@@ -271,10 +273,12 @@ namespace PharmTech.Controllers
 
         // Rejects a return request
         [HttpPut("api/drugreturns/{id}/reject")]
-        public async Task<IActionResult> RejectReturn(int id, [FromQuery] int processedById)
+        public async Task<IActionResult> RejectReturn(int id)
         {
             try
             {
+                var processedById = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");  // Using authenticated user ID
+
                 var returnItem = await _context.DrugReturns
                     .Include(r => r.Medicine)
                     .FirstOrDefaultAsync(r => r.ReturnId == id);
@@ -286,7 +290,7 @@ namespace PharmTech.Controllers
                     return BadRequest(new { success = false, message = "Already processed" });
 
                 returnItem.Status = "Rejected";
-                returnItem.ProcessedById = processedById;
+                returnItem.ProcessedById = processedById;  // Using authenticated user
 
                 await _context.SaveChangesAsync();
 

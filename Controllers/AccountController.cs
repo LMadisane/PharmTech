@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
@@ -15,31 +17,57 @@ namespace PharmTech.Controllers
     {
         private readonly PharmTechContext _context;
         private readonly IAuditLogService _auditLogService;
+        private readonly IPasswordHasher<User> _passwordHasher;
 
-        public AccountController(PharmTechContext context, IAuditLogService auditLogService)
+        public AccountController(
+            PharmTechContext context,
+            IAuditLogService auditLogService,
+            IPasswordHasher<User> passwordHasher)
         {
             _context = context;
             _auditLogService = auditLogService;
+            _passwordHasher = passwordHasher;
         }
 
         [HttpGet("login")]
+        [AllowAnonymous]
         public IActionResult Login() => View();
 
         [HttpPost("login")]
+        [AllowAnonymous]
         public async Task<IActionResult> Login(string email, string password)
         {
             // Check user exists
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-
-            if (user == null || !VerifyPassword(password, user?.PasswordHash))
+            if (user == null)
             {
-                // Log failed login attempt using System log (no authenticated user)
-                await _auditLogService.LogSystemAsync(
-                    action: "LoginFailed",
-                    entity: "User",
-                    details: $"Failed login attempt for email: {email}"
-                );
+                await LogFailedAttempt(email);
+                ModelState.AddModelError("", "Invalid credentials");
+                return View();
+            }
 
+            // Try PasswordHasher first
+            bool passwordValid = false;
+            var hasherResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
+
+            if (hasherResult == PasswordVerificationResult.Success)
+            {
+                passwordValid = true;
+            }
+
+            // If that fails, try legacy SHA25
+            else if (VerifyPasswordLegacy(password, user.PasswordHash))
+            {
+
+                // If SHA256 succeeds, re-hash with PasswordHasher and save the new hash
+                passwordValid = true;
+                user.PasswordHash = _passwordHasher.HashPassword(user, password);
+                await _context.SaveChangesAsync();
+            }
+
+            if (!passwordValid)
+            {
+                await LogFailedAttempt(email);
                 ModelState.AddModelError("", "Invalid credentials");
                 return View();
             }
@@ -53,7 +81,6 @@ namespace PharmTech.Controllers
                     entityId: user.UserId,
                     details: $"Login attempt for inactive account: {user.Email}"
                 );
-
                 ModelState.AddModelError("", "Your account has been deactivated. Contact your administrator.");
                 return View();
             }
@@ -78,14 +105,10 @@ namespace PharmTech.Controllers
             var identity = new ClaimsIdentity(claims, "Cookies");
             var principal = new ClaimsPrincipal(identity);
 
-            // Sign in with cookie
             await HttpContext.SignInAsync("Cookies", principal);
-
-            // Store session info
             HttpContext.Session.SetInt32("UserId", user.UserId);
             HttpContext.Session.SetString("Role", user.Role);
 
-            // Log successful login (use LogWithUserAsync to pass explicit user info)
             await _auditLogService.LogWithUserAsync(
                 action: "Login",
                 entity: "User",
@@ -100,7 +123,8 @@ namespace PharmTech.Controllers
             return RedirectToAction("Index", "Dashboard");
         }
 
-        private static bool VerifyPassword(string password, string? hash)
+        // Legacy SHA256 verification, fallback for old accounts
+        private static bool VerifyPasswordLegacy(string password, string? hash)
         {
             if (string.IsNullOrEmpty(hash))
                 return false;
@@ -110,11 +134,28 @@ namespace PharmTech.Controllers
             var hashedPassword = Convert.ToBase64String(hashedBytes);
             return hashedPassword == hash;
         }
+        
+        // Helper to log failed attempts
+        private async Task LogFailedAttempt(string email)
+        {
+            try
+            {
+                await _auditLogService.LogSystemAsync(
+                    action: "LoginFailed",
+                    entity: "User",
+                    details: $"Failed login attempt for email: {email}"
+                );
+            }
+            catch
+            {
+                // If audit logging fails, 
+                // don't block the user from seeing the login error
+            }
+        }
 
         [HttpGet("logout")]
         public async Task<IActionResult> Logout()
         {
-            // Get current user info from claims
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
             {
@@ -122,7 +163,6 @@ namespace PharmTech.Controllers
                 var userName = user?.Name ?? User.FindFirst(ClaimTypes.Name)?.Value ?? "Unknown";
                 var userRole = user?.Role ?? User.FindFirst(ClaimTypes.Role)?.Value ?? "Unknown";
 
-                // Log logout using explicit user info
                 await _auditLogService.LogWithUserAsync(
                     action: "Logout",
                     entity: "User",
@@ -135,10 +175,8 @@ namespace PharmTech.Controllers
                 );
             }
 
-            // Sign out of cookie auth
             await HttpContext.SignOutAsync("Cookies");
             HttpContext.Session.Clear();
-
             return RedirectToAction("Login");
         }
 

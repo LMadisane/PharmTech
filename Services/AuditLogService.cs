@@ -125,11 +125,11 @@ namespace PharmTech.Services
 
         // Failed login
         public async Task LogSystemAsync(
-            string action,
-            string entity,
-            string? details = null,
-            int? entityId = null,
-            int? facilityId = null)
+    string action,
+    string entity,
+    string? details = null,
+    int? entityId = null,
+    int? facilityId = null)
         {
             try
             {
@@ -139,7 +139,7 @@ namespace PharmTech.Services
 
                 var auditLog = new AuditLog
                 {
-                    UserId = 0,
+                    UserId = null,
                     UserName = "System",
                     UserRole = "System",
                     Action = action,

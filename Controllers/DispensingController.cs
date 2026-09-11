@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PharmTech.Data;
 using PharmTech.Models;
 using PharmTech.Models.DTOs;
-using PharmTech.Services;          // ← Make sure this is added
+using PharmTech.Services;          
 using System.Security.Claims;
 
 namespace PharmTech.Controllers
@@ -13,21 +13,19 @@ namespace PharmTech.Controllers
     {
         private readonly PharmTechContext _context;
         private readonly ILogger<DispensingController> _logger;
-        private readonly IAuditLogService _auditLogService;  // ← ADDED
+        private readonly IAuditLogService _auditLogService;
 
         public DispensingController(
             PharmTechContext context,
             ILogger<DispensingController> logger,
-            IAuditLogService auditLogService)                 // ← ADDED PARAMETER
+            IAuditLogService auditLogService)
         {
             _context = context;
             _logger = logger;
-            _auditLogService = auditLogService;               // ← ADDED
+            _auditLogService = auditLogService;
         }
 
-        // ============================================================
-        // VIEWS
-        // ============================================================
+        // ===== VIEWS
 
         [Authorize(Roles = "Pharmacist")]
         public IActionResult Index()
@@ -35,14 +33,9 @@ namespace PharmTech.Controllers
             return View();
         }
 
-        // ============================================================
-        // API ENDPOINTS
-        // ============================================================
+        // ====== API ENDPOINTS
 
-        // ============================================================
-        // GET: api/dispensing/{referenceCode}
         // Looks up a prescription by reference code (Pharmacist only)
-        // ============================================================
         [HttpGet("api/dispensing/{referenceCode}")]
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> GetByReference(string referenceCode)
@@ -105,10 +98,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // ============================================================
-        // POST: api/dispensing/dispense
         // Dispenses a prescription and updates stock (Pharmacist only)
-        // ============================================================
         [HttpPost("api/dispensing/dispense")]
         [Authorize(Roles = "Pharmacist")]
         public async Task<IActionResult> Dispense([FromBody] DispenseRequest request)
@@ -118,6 +108,7 @@ namespace PharmTech.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(new { success = false, message = "Invalid request data" });
 
+                // Using authenticated user, not request body
                 var pharmacistId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 var pharmacist = await _context.Users.FindAsync(pharmacistId);
 
@@ -155,18 +146,23 @@ namespace PharmTech.Controllers
                         message = $"Insufficient stock. Available: {inventory.Quantity}, Required: {requiredQty}"
                     });
 
-                // FIFO: Deduct from oldest batches first
+                // Only get non-expired batches
+                // Adding a tie-breaker (DateReceived) for FEFO + FIFO tie
                 var batches = await _context.MedicineBatches
                     .Where(b => b.MedId == prescription.MedId &&
                                 b.FacilityId == pharmacist.FacilityId.Value &&
-                                b.Quantity > 0)
-                    .OrderBy(b => b.ExpiryDate)
+                                b.Quantity > 0 &&
+                                b.ExpiryDate > DateTime.Today)  // DON'T dispense expired stock
+                    .OrderBy(b => b.ExpiryDate)                 // FEFO: First-Expiry-First-Out
+                    .ThenBy(b => b.DateReceived)                // FIFO tie-breaker
                     .ToListAsync();
 
                 if (!batches.Any())
-                    return BadRequest(new { success = false, message = "No available batches found for this medicine" });
+                    return BadRequest(new { success = false, message = "No available (non-expired) batches found for this medicine" });
 
                 int remainingToDeduct = requiredQty;
+                int actualDeducted = 0;  // Tracking what was actually deducted
+
                 foreach (var batch in batches)
                 {
                     if (remainingToDeduct <= 0) break;
@@ -174,14 +170,28 @@ namespace PharmTech.Controllers
                     int deductFromBatch = Math.Min(batch.Quantity, remainingToDeduct);
                     batch.Quantity -= deductFromBatch;
                     remainingToDeduct -= deductFromBatch;
+                    actualDeducted += deductFromBatch;
                 }
 
+                // Guard against inventory/batch mismatch
+                if (remainingToDeduct > 0)
+                {
+                    // Roll back if the batches didn't have enough stock
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = $"Insufficient valid stock. Available in batches: {actualDeducted}, Required: {requiredQty}. " +
+                                  "Please verify inventory consistency."
+                    });
+                }
+
+                // Deduct the actual amount which should equal requiredQty
                 inventory.Quantity -= requiredQty;
 
                 var dispenseRecord = new DispenseRecord
                 {
                     PrescriptionId = prescription.PrescriptionId,
-                    DispensedById = request.DispensedById,
+                    DispensedById = pharmacistId,  // Using authenticated user ID
                     FacilityId = pharmacist.FacilityId.Value,
                     QuantityDispensed = requiredQty,
                     DispensedAt = DateTime.Now
@@ -194,7 +204,7 @@ namespace PharmTech.Controllers
                 {
                     ReceiptNumber = $"DISP-{DateTime.Now:yyyyMMdd}-{prescription.PrescriptionId}",
                     ReceiptType = "Dispense",
-                    GeneratedById = request.DispensedById,
+                    GeneratedById = pharmacistId,  // Using authenticated user ID
                     PatientName = prescription.Patient?.Name ?? "Unknown",
                     MedicineName = prescription.Medicine?.Name ?? "Unknown",
                     Quantity = requiredQty,
@@ -207,7 +217,7 @@ namespace PharmTech.Controllers
                 _context.Receipts.Add(receipt);
                 await _context.SaveChangesAsync();
 
-                // ===== AUDIT LOG: Prescription dispensed =====
+                // AUDIT LOG: Prescription dispensed
                 await _auditLogService.LogAsync(
                     action: "Dispense",
                     entity: "Prescription",
@@ -245,10 +255,7 @@ namespace PharmTech.Controllers
             }
         }
 
-        // ============================================================
-        // GET: api/dispensing/prescription/{prescriptionId}/history
         // Retrieves dispense history for a prescription
-        // ============================================================
         [HttpGet("api/dispensing/prescription/{prescriptionId}/history")]
         [Authorize(Roles = "Admin,Doctor,Pharmacist")]
         public async Task<IActionResult> GetDispenseHistory(int prescriptionId)

@@ -1,7 +1,12 @@
-using PharmTech.Data;
-using Microsoft.EntityFrameworkCore;
-using PharmTech.Services;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;        
+using Microsoft.AspNetCore.Identity;             
+using Microsoft.AspNetCore.Mvc;                  
+using Microsoft.EntityFrameworkCore;
+using PharmTech.Data;
+using PharmTech.Services;
+using PharmTech.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,8 +17,11 @@ builder.Services.AddDbContext<PharmTechContext>(options =>
         new MySqlServerVersion(new Version(8, 0, 45))
     ));
 
-// Controllers
-builder.Services.AddControllersWithViews()
+// Controllers with global CSRF protection
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+})
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
@@ -26,18 +34,14 @@ builder.Services.AddAuthentication("Cookies")
         options.LoginPath = "/account/login";
         options.AccessDeniedPath = "/account/accessdenied";
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-
-        // Prevent redirect to login page for API requests
         options.Events.OnRedirectToLogin = context =>
         {
-            // If the request is to an API endpoint, return 401 Unauthorized
             if (context.Request.Path.StartsWithSegments("/api"))
             {
                 context.Response.StatusCode = 401;
                 context.Response.ContentType = "application/json";
                 return context.Response.WriteAsync("{\"success\":false,\"message\":\"Unauthorized\"}");
             }
-            // Otherwise, redirect to login page for normal MVC requests
             context.Response.Redirect(context.RedirectUri);
             return Task.CompletedTask;
         };
@@ -46,13 +50,18 @@ builder.Services.AddAuthentication("Cookies")
 // Antiforgery cookie fix
 builder.Services.AddAntiforgery(options =>
 {
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; //Fixes the http/https mismatch
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 });
 
-// Authorization (Role based)
-builder.Services.AddAuthorization();
+// Authorization with Fallback Policy – requires all controllers to be authenticated
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 
-// Login session (used in login system)
+// Login session
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -65,6 +74,7 @@ builder.Services.AddSession(options =>
 builder.Services.AddHostedService<LowStockBackgroundService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
 var app = builder.Build();
 
@@ -79,7 +89,7 @@ using (var scope = app.Services.CreateScope())
         db.Database.Migrate();
         logger.LogInformation("Database ensured/created.");
 
-        //Seeding default Admin account if no users exist
+        // Seeding default Admin account if no users exist
         await DbSeeder.SeedAsync(db);
         logger.LogInformation("Database seeding completed.");
     }
@@ -128,25 +138,25 @@ app.MapControllerRoute(
 app.MapControllerRoute(
     name: "audit",
     pattern: "audit/{action=Index}/{id?}",
-    defaults: new { controller = "AuditLogView" });
+    defaults: new { controller = "AuditLogs" });
 
 // Dashboard
 app.MapControllerRoute(
     name: "dashboard",
     pattern: "dashboard/{action=Index}/{id?}",
-    defaults: new { controller = "DashboardView" });
+    defaults: new { controller = "Dashboard" });
 
 // Dispensing
 app.MapControllerRoute(
     name: "dispensing",
     pattern: "dispensing/{action=Index}/{id?}",
-    defaults: new { controller = "DispensingView" });
+    defaults: new { controller = "Dispensing" });
 
 // Drug Returns
 app.MapControllerRoute(
     name: "returns",
     pattern: "returns/{action=Index}/{id?}",
-    defaults: new { controller = "DrugReturnsView" });
+    defaults: new { controller = "DrugReturns" });
 
 // Facilities
 app.MapControllerRoute(
@@ -176,24 +186,30 @@ app.MapControllerRoute(
 app.MapControllerRoute(
     name: "prescriptions",
     pattern: "prescriptions/{action=Index}/{id?}",
-    defaults: new { controller = "PrescriptionView" });
+    defaults: new { controller = "Prescription" });
 
 // Receipts
 app.MapControllerRoute(
     name: "receipts",
     pattern: "receipts/{action=Index}/{id?}",
-    defaults: new { controller = "ReceiptView" });
+    defaults: new { controller = "Receipt" });
+
+// Reports
+app.MapControllerRoute(
+    name: "reports",
+    pattern: "reports/{action=Reports}/{id?}",
+    defaults: new { controller = "Report" });
 
 // Suppliers
 app.MapControllerRoute(
     name: "suppliers",
     pattern: "suppliers/{action=Index}/{id?}",
-    defaults: new { controller = "SupplierView" });
+    defaults: new { controller = "Supplier" });
 
 // User Management
 app.MapControllerRoute(
     name: "users",
     pattern: "users/{action=Index}/{id?}",
-    defaults: new { controller = "UserManagementView" });
+    defaults: new { controller = "UserManagement" });
 
 app.Run();
