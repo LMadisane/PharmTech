@@ -28,7 +28,7 @@
 
     <!-- Form Card -->
     <div x-show="!loading" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-        <form @@submit.prevent="updateUser()">
+        <form x-on:submit.prevent="updateUser()">
             <!-- Full Name -->
             <div class="mb-5">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Full Name *</label>

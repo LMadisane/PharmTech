@@ -69,7 +69,7 @@ namespace PharmTech.Controllers
 
                 var logs = await query
                     .OrderByDescending(l => l.Timestamp)
-                    .Take(limit.Value)
+                    .Take(limit ?? 200)
                     .Select(l => new
                     {
                         l.AuditLogId,

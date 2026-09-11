@@ -16,7 +16,7 @@
 
     <!-- Form Card -->
     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-        <form @@submit.prevent="submitDisposal()">
+        <form x-on:submit.prevent="submitDisposal()">
 
             <!-- Facility, auto‑filled read‑only -->
             <div class="mb-5">
