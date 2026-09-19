@@ -146,7 +146,6 @@ namespace PharmTech.Controllers
                         message = $"Insufficient stock. Available: {inventory.Quantity}, Required: {requiredQty}"
                     });
 
-                // Only get non-expired batches
                 // Adding a tie-breaker (DateReceived) for FEFO + FIFO tie
                 var batches = await _context.MedicineBatches
                     .Where(b => b.MedId == prescription.MedId &&
@@ -155,6 +154,7 @@ namespace PharmTech.Controllers
                                 b.ExpiryDate > DateTime.Today)  // DON'T dispense expired stock
                     .OrderBy(b => b.ExpiryDate)                 // FEFO: First-Expiry-First-Out
                     .ThenBy(b => b.DateReceived)                // FIFO tie-breaker
+                    .ThenBy(b => b.BatchId)                     // Deterministic final tie-breaker
                     .ToListAsync();
 
                 if (!batches.Any())
