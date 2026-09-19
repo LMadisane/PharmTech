@@ -1,20 +1,25 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using PharmTech.Models;
 using System.Security.Cryptography;
-using System.Text;
 
 namespace PharmTech.Data
 {
     public static class DbSeeder
     {
-        public static async Task SeedAsync(PharmTechContext db)
+        public static async Task SeedAsync(PharmTechContext db, IConfiguration configuration)
         {
             // Only seed if no users exist at all
             if (await db.Users.AnyAsync())
                 return;
 
-            var passwordHasher = new PasswordHasher<User>();  // Use proper password hasher
+            var adminPassword = configuration["Bootstrap:AdminPassword"];
+            if (string.IsNullOrWhiteSpace(adminPassword) || adminPassword.Length < 16)
+                throw new InvalidOperationException(
+                    "Set Bootstrap:AdminPassword to a unique password of at least 16 characters before seeding an empty database.");
+
+            var passwordHasher = new PasswordHasher<User>();
 
             // Create default Admin account
             var admin = new User
@@ -24,7 +29,7 @@ namespace PharmTech.Data
                 Role = "Admin",
                 IsActive = true
             };
-            admin.PasswordHash = passwordHasher.HashPassword(admin, "[REDACTED]");
+            admin.PasswordHash = passwordHasher.HashPassword(admin, adminPassword);
             db.Users.Add(admin);
 
             // Create Demo Facility 1
@@ -57,7 +62,7 @@ namespace PharmTech.Data
                 IsActive = true,
                 FacilityId = facility1.FacilityId
             };
-            doctor1.PasswordHash = passwordHasher.HashPassword(doctor1, "[REDACTED]");
+            doctor1.PasswordHash = passwordHasher.HashPassword(doctor1, NewRandomPassword());
             db.Users.Add(doctor1);
 
             var doctor2 = new User
@@ -68,7 +73,7 @@ namespace PharmTech.Data
                 IsActive = true,
                 FacilityId = facility2.FacilityId
             };
-            doctor2.PasswordHash = passwordHasher.HashPassword(doctor2, "[REDACTED]");
+            doctor2.PasswordHash = passwordHasher.HashPassword(doctor2, NewRandomPassword());
             db.Users.Add(doctor2);
 
             // Creating Pharmacist accounts
@@ -80,7 +85,7 @@ namespace PharmTech.Data
                 IsActive = true,
                 FacilityId = facility1.FacilityId
             };
-            pharmacist1.PasswordHash = passwordHasher.HashPassword(pharmacist1, "[REDACTED]");
+            pharmacist1.PasswordHash = passwordHasher.HashPassword(pharmacist1, NewRandomPassword());
             db.Users.Add(pharmacist1);
 
             var pharmacist2 = new User
@@ -91,7 +96,7 @@ namespace PharmTech.Data
                 IsActive = true,
                 FacilityId = facility2.FacilityId
             };
-            pharmacist2.PasswordHash = passwordHasher.HashPassword(pharmacist2, "[REDACTED]");
+            pharmacist2.PasswordHash = passwordHasher.HashPassword(pharmacist2, NewRandomPassword());
             db.Users.Add(pharmacist2);
 
             // Creating some sample patients
@@ -119,5 +124,8 @@ namespace PharmTech.Data
 
             await db.SaveChangesAsync();
         }
+
+        private static string NewRandomPassword() =>
+            Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
     }
 }

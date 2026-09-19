@@ -6,8 +6,7 @@ using PharmTech.Models;
 using PharmTech.Models.DTOs;
 using PharmTech.Services;
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
+using Microsoft.AspNetCore.Identity;
 
 namespace PharmTech.Controllers
 {
@@ -17,15 +16,18 @@ namespace PharmTech.Controllers
         private readonly PharmTechContext _context;
         private readonly ILogger<UserManagementController> _logger;
         private readonly IAuditLogService _auditLogService;
+        private readonly IPasswordHasher<User> _passwordHasher;
 
         public UserManagementController(
             PharmTechContext context,
             ILogger<UserManagementController> logger,
-            IAuditLogService auditLogService)
+            IAuditLogService auditLogService,
+            IPasswordHasher<User> passwordHasher)
         {
             _context = context;
             _logger = logger;
             _auditLogService = auditLogService;
+            _passwordHasher = passwordHasher;
         }
 
         // ========= VIEWS
@@ -135,12 +137,21 @@ namespace PharmTech.Controllers
                 if (!allowedRoles.Contains(request.Role))
                     return BadRequest(new { success = false, message = "Invalid role. Allowed roles: Doctor, Pharmacist, Patient" });
 
+                // Build the user object first so PasswordHasher can hash against it
+                var user = new User
+                {
+                    Name = request.Name,
+                    Email = request.Email,
+                    Role = request.Role,
+                    IsActive = true,
+                    FacilityId = request.FacilityId
+                };
+
                 // Handle password based on role
-                string passwordHash;
                 if (request.Role == "Patient")
                 {
-                    // Patients don't login, so use a placeholder hash
-                    passwordHash = HashPassword(Guid.NewGuid().ToString());
+                    // Patients don't log in, so I'm using a random placeholder hash
+                    user.PasswordHash = _passwordHasher.HashPassword(user, Guid.NewGuid().ToString());
                 }
                 else
                 {
@@ -148,18 +159,8 @@ namespace PharmTech.Controllers
                     if (string.IsNullOrEmpty(request.Password) || request.Password.Length < 6)
                         return BadRequest(new { success = false, message = "Password must be at least 6 characters" });
 
-                    passwordHash = HashPassword(request.Password);
+                    user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
                 }
-
-                var user = new User
-                {
-                    Name = request.Name,
-                    Email = request.Email,
-                    PasswordHash = passwordHash,
-                    Role = request.Role,
-                    IsActive = true,
-                    FacilityId = request.FacilityId
-                };
 
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
@@ -278,7 +279,7 @@ namespace PharmTech.Controllers
                 if (user == null)
                     return NotFound(new { success = false, message = "User not found" });
 
-                user.PasswordHash = HashPassword(request.NewPassword);
+                user.PasswordHash = _passwordHasher.HashPassword(user, request.NewPassword);
                 await _context.SaveChangesAsync();
 
                 // AUDIT LOG: Password reset
@@ -429,14 +430,6 @@ namespace PharmTech.Controllers
                 _logger.LogError(ex, "Error deleting user {Id}", id);
                 return StatusCode(500, new { success = false, message = "An error occurred while deleting user" });
             }
-        }
-
-        // Helper: Hash a password using SHA256
-        private static string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            return Convert.ToBase64String(hashedBytes);
         }
     }
 }

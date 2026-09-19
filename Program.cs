@@ -90,12 +90,13 @@ using (var scope = app.Services.CreateScope())
         logger.LogInformation("Database ensured/created.");
 
         // Seeding default Admin account if no users exist
-        await DbSeeder.SeedAsync(db);
+        await DbSeeder.SeedAsync(db, app.Configuration);
         logger.LogInformation("Database seeding completed.");
     }
     catch (Exception ex)
     {
         logger.LogError(ex, "An error occurred creating the DB.");
+        throw;
     }
 }
 

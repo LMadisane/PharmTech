@@ -83,7 +83,7 @@
                         Saving...
                     </span>
                 </button>
-                <a href="/Medicine"
+                <a href="/Medicine/Index"
                        class="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold px-6 py-3 rounded-xl transition duration-200 text-center">
                     Cancel
                 </a>
@@ -160,7 +160,7 @@
 
                         if (result.success) {
                             showToast('Medicine updated successfully!', 'success');
-                            window.location.href = '/Medicine';
+                            window.location.href = '/Medicine/Index';
                         } else {
                             this.error = result.message || 'Failed to update medicine';
                             showToast(this.error, 'error');

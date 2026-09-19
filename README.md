@@ -112,10 +112,9 @@ git clone https://github.com/LMadisane/PharmTech
 2. Open the solution in Visual Studio
 
 3. Configure the database connection:
-- For development, use User Secrets (recommended):
-- dotnet user-secrets set "ConnectionStrings:DefaultConnection" "server=localhost;database=pharmtech_db;user=root;password=YourPassword"
-- Or set environment variable: `ConnectionStrings__DefaultConnection`
-- Do not commit passwords to the repository
+- For development, set `ConnectionStrings:DefaultConnection` in Visual Studio's Manage User Secrets, or set the `ConnectionStrings__DefaultConnection` environment variable.
+- Use a dedicated database account where possible. Do not commit the connection string or paste passwords into issue comments, messages, or command history.
+- For a new, empty database, also set `Bootstrap:AdminPassword` in User Secrets (or `Bootstrap__AdminPassword` as an environment variable). Use a unique password of at least 16 characters. Existing databases with users do not need this bootstrap setting.
 
 4. Run migrations:
 - dotnet ef database update
@@ -128,9 +127,9 @@ git clone https://github.com/LMadisane/PharmTech
 
 After seeding, the system includes a default administrator:
 - Email: admin@pharmtech.com
-- Password: [REDACTED]
+- Password: set locally as Bootstrap:AdminPassword before first seeding
 
-Demo accounts for Doctors and Pharmacists are also seeded during initial setup.
+Demo Doctor and Pharmacist accounts are seeded with random passwords. An administrator must set their passwords through User Management before those accounts can log in. Existing accounts are not changed by seeding.
 
 <Expected Outcomes>
 
