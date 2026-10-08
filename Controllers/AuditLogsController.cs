@@ -65,7 +65,11 @@ namespace PharmTech.Controllers
                     query = query.Where(l => l.Timestamp >= from.Value);
 
                 if (to.HasValue)
-                    query = query.Where(l => l.Timestamp <= to.Value);
+                {
+                    // Treat a date-only "to" value as the full selected day.
+                    var toExclusive = to.Value.Date.AddDays(1);
+                    query = query.Where(l => l.Timestamp < toExclusive);
+                }
 
                 var logs = await query
                     .OrderByDescending(l => l.Timestamp)

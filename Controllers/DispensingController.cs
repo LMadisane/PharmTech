@@ -139,26 +139,44 @@ namespace PharmTech.Controllers
                 if (inventory == null)
                     return BadRequest(new { success = false, message = $"Medicine '{prescription.Medicine?.Name}' not found in inventory at your facility" });
 
-                if (inventory.Quantity < requiredQty)
+                // Inventory quantity represents all stock at the facility, including expired batches.
+                var allBatches = await _context.MedicineBatches
+                    .Where(b => b.MedId == prescription.MedId &&
+                                b.FacilityId == pharmacist.FacilityId.Value)
+                    .ToListAsync();
+
+                var batchTotal = allBatches.Sum(b => b.Quantity);
+                if (inventory.Quantity != batchTotal)
+                {
                     return BadRequest(new
                     {
                         success = false,
-                        message = $"Insufficient stock. Available: {inventory.Quantity}, Required: {requiredQty}"
+                        message = $"Inventory inconsistency detected. Summary quantity: {inventory.Quantity}, " +
+                                  $"batch quantity total: {batchTotal}. Dispensing was cancelled."
                     });
+                }
 
-                // Adding a tie-breaker (DateReceived) for FEFO + FIFO tie
-                var batches = await _context.MedicineBatches
-                    .Where(b => b.MedId == prescription.MedId &&
-                                b.FacilityId == pharmacist.FacilityId.Value &&
-                                b.Quantity > 0 &&
-                                b.ExpiryDate > DateTime.Today)  // DON'T dispense expired stock
+                // FEFO, then FIFO, then BatchId for a deterministic final tie-breaker.
+                var batches = allBatches
+                    .Where(b => b.Quantity > 0 && b.ExpiryDate > DateTime.Today)
                     .OrderBy(b => b.ExpiryDate)                 // FEFO: First-Expiry-First-Out
                     .ThenBy(b => b.DateReceived)                // FIFO tie-breaker
                     .ThenBy(b => b.BatchId)                     // Deterministic final tie-breaker
-                    .ToListAsync();
+                    .ToList();
 
                 if (!batches.Any())
                     return BadRequest(new { success = false, message = "No available (non-expired) batches found for this medicine" });
+
+                var eligibleBatchTotal = batches.Sum(b => b.Quantity);
+                if (eligibleBatchTotal < requiredQty)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = $"Insufficient valid stock. Available in non-expired batches: {eligibleBatchTotal}, " +
+                                  $"required: {requiredQty}."
+                    });
+                }
 
                 int remainingToDeduct = requiredQty;
                 int actualDeducted = 0;  // Tracking what was actually deducted
@@ -173,20 +191,7 @@ namespace PharmTech.Controllers
                     actualDeducted += deductFromBatch;
                 }
 
-                // Guard against inventory/batch mismatch
-                if (remainingToDeduct > 0)
-                {
-                    // Roll back if the batches didn't have enough stock
-                    return BadRequest(new
-                    {
-                        success = false,
-                        message = $"Insufficient valid stock. Available in batches: {actualDeducted}, Required: {requiredQty}. " +
-                                  "Please verify inventory consistency."
-                    });
-                }
-
-                // Deduct the actual amount which should equal requiredQty
-                inventory.Quantity -= requiredQty;
+                inventory.Quantity -= actualDeducted;
 
                 var dispenseRecord = new DispenseRecord
                 {
@@ -262,6 +267,30 @@ namespace PharmTech.Controllers
         {
             try
             {
+                var prescription = await _context.Prescriptions
+                    .AsNoTracking()
+                    .Where(p => p.PrescriptionId == prescriptionId)
+                    .Select(p => new { p.PrescriptionId, p.FacilityId })
+                    .FirstOrDefaultAsync();
+
+                if (prescription == null)
+                    return NotFound(new { success = false, message = "Prescription not found" });
+
+                if (!User.IsInRole("Admin"))
+                {
+                    var userIdValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                    if (!int.TryParse(userIdValue, out var userId))
+                        return Forbid();
+
+                    var userFacilityId = await _context.Users
+                        .Where(u => u.UserId == userId)
+                        .Select(u => u.FacilityId)
+                        .FirstOrDefaultAsync();
+
+                    if (!userFacilityId.HasValue || userFacilityId.Value != prescription.FacilityId)
+                        return Forbid();
+                }
+
                 var dispenses = await _context.DispenseRecords
                     .Include(d => d.DispensedBy)
                     .Include(d => d.Facility)

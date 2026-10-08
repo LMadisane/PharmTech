@@ -10,6 +10,8 @@ using PharmTech.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var cookieTimeoutMinutes = builder.Configuration.GetValue<int?>("Authentication:CookieTimeoutMinutes") ?? 60;
+
 // Database
 builder.Services.AddDbContext<PharmTechContext>(options =>
     options.UseMySql(
@@ -33,6 +35,8 @@ builder.Services.AddAuthentication("Cookies")
     {
         options.LoginPath = "/account/login";
         options.AccessDeniedPath = "/account/accessdenied";
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(cookieTimeoutMinutes);
+        options.SlidingExpiration = true;
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         options.Events.OnRedirectToLogin = context =>
         {

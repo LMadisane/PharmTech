@@ -74,7 +74,12 @@ namespace PharmTech.Services
                     _logger.LogInformation(message);
 
                     // Avoid duplicate alerts - only create if one doesn't already exist today
-                    var alreadyAlerted = await db.SystemAlerts.AnyAsync(a =>
+                    var alreadyAlerted = db.SystemAlerts.Local.Any(a =>
+                        a.AlertType == "LowStock" &&
+                        a.MedId == item.MedId &&
+                        a.FacilityId == item.FacilityId &&
+                        a.CreatedAt.Date == DateTime.Today) ||
+                        await db.SystemAlerts.AnyAsync(a =>
                         a.AlertType == "LowStock" &&
                         a.MedId == item.MedId &&
                         a.FacilityId == item.FacilityId &&
@@ -118,6 +123,7 @@ namespace PharmTech.Services
                 var daysUntilExpiry = (batch.ExpiryDate - DateTime.Today).Days;
                 string alertType = "ExpiryWarning";
                 string message;
+                var lotMarker = $"(Lot: {batch.LotNumber})";
 
                 // Handle expired batches
                 if (daysUntilExpiry < 0)
@@ -140,9 +146,17 @@ namespace PharmTech.Services
                                       $"{batch.ExpiryDate:dd MMM yyyy}";
                             alerted = true;
 
-                            var alreadyAlerted = await db.SystemAlerts.AnyAsync(a =>
+                            var alreadyAlerted = db.SystemAlerts.Local.Any(a =>
                                 a.AlertType == "ExpiryWarning" &&
                                 a.MedId == batch.MedId &&
+                                a.FacilityId == batch.FacilityId &&
+                                a.Message.Contains(lotMarker) &&
+                                a.CreatedAt.Date == DateTime.Today) ||
+                                await db.SystemAlerts.AnyAsync(a =>
+                                a.AlertType == "ExpiryWarning" &&
+                                a.MedId == batch.MedId &&
+                                a.FacilityId == batch.FacilityId &&
+                                a.Message.Contains(lotMarker) &&
                                 a.CreatedAt.Date == DateTime.Today,
                                 cancellationToken);
 
@@ -165,9 +179,17 @@ namespace PharmTech.Services
                 // Handle expired batches separately (if not already handled above)
                 if (daysUntilExpiry < 0)
                 {
-                    var alreadyAlerted = await db.SystemAlerts.AnyAsync(a =>
+                    var alreadyAlerted = db.SystemAlerts.Local.Any(a =>
                         a.AlertType == "ExpiredStock" &&
                         a.MedId == batch.MedId &&
+                        a.FacilityId == batch.FacilityId &&
+                        a.Message.Contains(lotMarker) &&
+                        a.CreatedAt.Date == DateTime.Today) ||
+                        await db.SystemAlerts.AnyAsync(a =>
+                        a.AlertType == "ExpiredStock" &&
+                        a.MedId == batch.MedId &&
+                        a.FacilityId == batch.FacilityId &&
+                        a.Message.Contains(lotMarker) &&
                         a.CreatedAt.Date == DateTime.Today,
                         cancellationToken);
 
