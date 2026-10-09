@@ -87,7 +87,7 @@ namespace PharmTech.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AuditLogs");
+                    b.ToTable("AuditLogs", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.DispenseRecord", b =>
@@ -121,7 +121,7 @@ namespace PharmTech.Migrations
 
                     b.HasIndex("PrescriptionId");
 
-                    b.ToTable("DispenseRecords");
+                    b.ToTable("DispenseRecords", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.DisposalRecord", b =>
@@ -168,7 +168,7 @@ namespace PharmTech.Migrations
 
                     b.HasIndex("RecordedById");
 
-                    b.ToTable("DisposalRecords");
+                    b.ToTable("DisposalRecords", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.DrugReturn", b =>
@@ -218,7 +218,7 @@ namespace PharmTech.Migrations
 
                     b.HasIndex("ProcessedById");
 
-                    b.ToTable("DrugReturns");
+                    b.ToTable("DrugReturns", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.Facility", b =>
@@ -243,7 +243,7 @@ namespace PharmTech.Migrations
 
                     b.HasKey("FacilityId");
 
-                    b.ToTable("Facilities");
+                    b.ToTable("Facilities", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.InventoryItem", b =>
@@ -274,7 +274,7 @@ namespace PharmTech.Migrations
 
                     b.HasIndex("MedicineMedId");
 
-                    b.ToTable("InventoryItems");
+                    b.ToTable("InventoryItems", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.Medicine", b =>
@@ -298,7 +298,7 @@ namespace PharmTech.Migrations
 
                     b.HasKey("MedId");
 
-                    b.ToTable("Medicines");
+                    b.ToTable("Medicines", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.MedicineBatch", b =>
@@ -337,7 +337,7 @@ namespace PharmTech.Migrations
 
                     b.HasIndex("MedId", "FacilityId");
 
-                    b.ToTable("MedicineBatches");
+                    b.ToTable("MedicineBatches", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.OrderRequest", b =>
@@ -388,7 +388,7 @@ namespace PharmTech.Migrations
 
                     b.HasIndex("SupplierId");
 
-                    b.ToTable("OrderRequests");
+                    b.ToTable("OrderRequests", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.Prescription", b =>
@@ -433,7 +433,7 @@ namespace PharmTech.Migrations
 
                     b.HasIndex("PatientId");
 
-                    b.ToTable("Prescriptions");
+                    b.ToTable("Prescriptions", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.Receipt", b =>
@@ -485,7 +485,7 @@ namespace PharmTech.Migrations
 
                     b.HasIndex("GeneratedById");
 
-                    b.ToTable("Receipts");
+                    b.ToTable("Receipts", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.RefillRequest", b =>
@@ -527,7 +527,7 @@ namespace PharmTech.Migrations
 
                     b.HasIndex("RequestedById");
 
-                    b.ToTable("RefillRequests");
+                    b.ToTable("RefillRequests", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.StockThreshold", b =>
@@ -561,7 +561,7 @@ namespace PharmTech.Migrations
 
                     b.HasIndex("SetById");
 
-                    b.ToTable("StockThresholds");
+                    b.ToTable("StockThresholds", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.Supplier", b =>
@@ -586,7 +586,7 @@ namespace PharmTech.Migrations
 
                     b.HasKey("SupplierId");
 
-                    b.ToTable("Suppliers");
+                    b.ToTable("Suppliers", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.SystemAlert", b =>
@@ -623,7 +623,7 @@ namespace PharmTech.Migrations
 
                     b.HasIndex("MedId");
 
-                    b.ToTable("SystemAlerts");
+                    b.ToTable("SystemAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.User", b =>
@@ -660,7 +660,7 @@ namespace PharmTech.Migrations
 
                     b.HasIndex("FacilityId");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("PharmTech.Models.AuditLog", b =>

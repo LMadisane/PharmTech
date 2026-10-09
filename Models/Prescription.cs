@@ -14,6 +14,8 @@ namespace PharmTech.Models
 
         [Required]
         public int MedId { get; set; }
+
+        [ForeignKey(nameof(MedId))]
         public virtual Medicine Medicine { get; set; } = null!;
 
         [Required]
