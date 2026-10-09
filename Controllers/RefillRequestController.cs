@@ -64,7 +64,24 @@ namespace PharmTech.Controllers
                     facilityId: prescription.FacilityId
                 );
 
-                return Ok(new { message = "Refill request submitted", request });
+                // Return a response DTO rather than the EF entity. The entity has
+                // navigation properties back to the prescription and users, which
+                // form an object cycle during JSON serialization.
+                return Ok(new
+                {
+                    message = "Refill request submitted",
+                    request = new
+                    {
+                        request.RefillRequestId,
+                        request.OriginalPrescriptionId,
+                        request.RequestedById,
+                        request.DoctorId,
+                        request.Status,
+                        request.Notes,
+                        request.RequestedAt,
+                        request.ReviewedAt
+                    }
+                });
             }
             catch (Exception ex)
             {
