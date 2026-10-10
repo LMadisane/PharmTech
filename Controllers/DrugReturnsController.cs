@@ -327,6 +327,9 @@ namespace PharmTech.Controllers
         {
             try
             {
+                if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var recalledById) || recalledById <= 0)
+                    return Unauthorized(new { success = false, message = "A valid signed-in user is required to recall a drug" });
+
                 var batches = await _context.MedicineBatches
                     .Where(b => b.LotNumber == lotNumber && b.Quantity > 0)
                     .ToListAsync();
@@ -343,6 +346,7 @@ namespace PharmTech.Controllers
                         BatchId = batch.BatchId,
                         Quantity = batch.Quantity,
                         Reason = "Recalled",
+                        RecordedById = recalledById,
                         RecordedAt = DateTime.Now
                     };
 
